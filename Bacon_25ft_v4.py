@@ -522,6 +522,8 @@ SC_Input={'fom':np.load('fom_0.npy'),
 
 #2. Import elevations
 
+#Dataframe with average subsidence
+avg_sub_df=pd.DataFrame(columns = ['Year', 'Sub_r_ft_yr'])
 
 #3. Let's loop through years now
 
@@ -569,6 +571,7 @@ for year in range(Start_Year,End_Year+1):
     
     #average subsidence
     subs_avg=np.average(subs[subs>0])
+    avg_sub_df=avg_sub_df.append({"Year":year,'Sub_r_ft_yr':subs_avg},ignore_index = True)
     
     #Let's excavate drains
     #We sample elevations
@@ -637,6 +640,9 @@ for year in range(Start_Year,End_Year+1):
     drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
     print(year,ti-t0)
+
+#Let's export average subsidence dataframe
+avg_sub_df.to_csv(os.path.join(np_dir,"Avg_Sub.csv"),index=False)
          
         
         
