@@ -16,6 +16,7 @@ import flopy
 import time
 from math import exp, log, log10, isnan
 import matplotlib.pyplot as plt
+import csv
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -530,6 +531,7 @@ for year in range(Start_Year,End_Year+1):
     heads=h.get_data()
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
+    t0 = datetime.datetime.now()
     SC_Input=subcalc_2021_npy(SC_Input['fom'],
                               SC_Input['fomund'],
                               DTW/3.28084,
@@ -543,12 +545,14 @@ for year in range(Start_Year,End_Year+1):
                               bdund=SC_Input['bdund'],
                               massmin=SC_Input['massmin']
                               )
-    
+
+    tf = datetime.datetime.now()
+    print(tf-t0)
     subs=SC_Input['tdelev']*3.28084/100
     #For levees, subsidence is zer0
     subs[levees]=0
     #where subsidence is not na, we update top elevation by subsidence
-    ml.dis.top[~np.isnan(subs)]=ml.dis.top[~np.isnan(subs)]-subs[~np.isnan(subs)]
+    ml.dis.top[~np.isnan(subs)]=np.maximum(ml.dis.top[~np.isnan(subs)]-subs[~np.isnan(subs)],ml.dis.botm[0][~np.isnan(subs)])
     
     #average subsidence
     subs_avg=np.average(subs[subs>0])
@@ -604,6 +608,10 @@ for year in range(Start_Year,End_Year+1):
     #Let's export subsidence
     flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Subs_ft_"+str(year)+".tif"), subs)
     ti=datetime.datetime.now()
+    drns_pd=pd.DataFrame(drns)
+    drns_pd["Year"]=year
+    drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
+    #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
     print(year,ti-t0)
          
         
