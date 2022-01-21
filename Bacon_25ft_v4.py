@@ -464,6 +464,12 @@ Active_cells=np.where(ibound!=0)
 #Let's get mask of levees
 levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
 
+#Let's get indexes of toedrains
+toedrains_in=pd.read_csv(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\Drains\ToeDrains_Index_Flopy.csv")
+toedrains_in=toedrains_in.drop(['k','elev', 'cond', 'iface', 'top', 'PT_bot', 'TM_bot','h_PT', 'h_TM', 'h_SP', 'Grad'], axis=1)
+
+#Let's convert to recarray
+toedrains_in_rec=toedrains_in.to_records
 
 
 
@@ -491,6 +497,13 @@ vertices = []
 for row, col in zip(drns['i'], drns['j']):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+#Let's create toedrains shapefile template
+vertices = []
+for row, col in zip(toedrains_in['i'], toedrains_in['j']):
+    vertices.append(grid.get_cell_vertices(row, col))
+polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
@@ -609,6 +622,17 @@ for year in range(Start_Year,End_Year+1):
     flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Subs_ft_"+str(year)+".tif"), subs)
     ti=datetime.datetime.now()
     drns_pd=pd.DataFrame(drns)
+
+
+    #Let's subset to toedrains
+    toedrains_dum=pd.merge(drns_pd, toedrains_in, how="right", on=["i","j"])
+    #Let's convert to recarray
+    toedrains_dum_rec=toedrains_dum.to_records()
+    flopy.export.shapefile_utils.recarray2shp(toedrains_dum_rec,
+                                              geoms=polygons_toedrn,
+                                              shpname=os.path.join(shp_dir,"TOEDRNS_"+str(year)+".shp"),
+                                              epsg=grid.epsg)
+
     drns_pd["Year"]=year
     drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
