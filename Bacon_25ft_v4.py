@@ -595,14 +595,14 @@ for year in range(Start_Year,End_Year+1):
     
     #LEt's update drains
     ml.drn.stress_period_data[0][['k','elev']]=drns[['k','elev']]
-    
+    ml.write_input()
     #Let's update constant heads
     
     for layer in range(3):
         bas.strt[layer][CH]=SLR.loc[year,"2_ft"]
-    
+    bas.write_file()
     #Let's run MODFLOW
-    ml.write_input()
+
     subprocess.check_output(["mf2005", "Bacon_fix.nam"])
     
     #Update heads
@@ -629,6 +629,10 @@ for year in range(Start_Year,End_Year+1):
                                               epsg=grid.epsg)
     #Let's export subsidence
     flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Subs_ft_"+str(year)+".tif"), subs)
+    #Let's export heads
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_Pt_ft_" + str(year) + ".tif"), heads[0])
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_TM_ft_" + str(year) + ".tif"), heads[1])
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_SP_ft_" + str(year) + ".tif"), heads[2])
     ti=datetime.datetime.now()
     drns_pd=pd.DataFrame(drns)
 
