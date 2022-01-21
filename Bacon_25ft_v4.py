@@ -576,16 +576,22 @@ for year in range(Start_Year,End_Year+1):
     #Let's excavate drains
     #We sample elevations
     drns['top']=ml.dis.top[drns['i'],drns['j']]
+    #Let's convert recarray to pandas
+    drns_pd=pd.DataFrame(drns)
     #Drains that will remain in layer 1
-    cond=(drns['k']==0)&(drns['elev']-subs_avg>=drns['PT_bot'])
-    drns[cond]['elev']=drns[cond]['elev']-subs_avg
+    #cond=(drns['k']==0)&(drns['elev']-subs_avg>=drns['PT_bot'])
+    cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg>=drns_pd.PT_bot)
+    drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
     #Drains that will switch from layer 1 to layer 2
-    cond=(drns['k']==0)&(drns['elev']-subs_avg<drns['PT_bot'])
-    drns[cond]['k']=1
-    drns[cond]['elev']=drns[cond]['elev']-subs_avg
+    cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg<drns_pd.PT_bot)
+    drns_pd.loc[cond,'k']=1
+    drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
     #Drains that will remain in layer 2
-    cond=(drns['k']==1)&(drns['elev']-subs_avg>=drns['TM_bot'])
-    drns[cond]['elev']=drns[cond]['elev']-subs_avg
+    cond=(drns_pd.k==1)&(drns_pd.elev-subs_avg>=drns_pd.TM_bot)
+    drns_pd.loc[cond,'elev']=drns[cond]['elev']-subs_avg
+    drns=drns_pd.to_records(index=False)
+
+    #Convert back to recarray
     
     #LEt's update drains
     ml.drn.stress_period_data[0][['k','elev']]=drns[['k','elev']]
