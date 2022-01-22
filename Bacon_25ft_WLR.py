@@ -446,6 +446,9 @@ End_Year=2070
 #Let's load model
 ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
 
+#Let's export shapefile of grid
+#ml.dis.export(os.path.join(shp_dir, "Grid.shp"))
+
 grid = ml.modelgrid
 grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 nrg=ml.nrow
@@ -460,6 +463,9 @@ bas = flopy.modflow.ModflowBas.load('MF_inputs/Bacon.bas', ml)
 
 ibound=np.array(bas.ibound[0][:])
 Active_cells=np.where(ibound!=0)
+
+#Let's get masks of wetland and rice scenario
+bas_wlr = flopy.modflow.ModflowBas.load('MF_inputs/BaconWLR_year0.bas', ml)
 
 #Let's get mask of levees
 levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
