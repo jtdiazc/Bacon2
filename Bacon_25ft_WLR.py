@@ -465,7 +465,7 @@ ibound=np.array(bas.ibound[0][:])
 Active_cells=np.where(ibound!=0)
 
 #Let's get masks of wetland and rice scenario
-bas_wlr = flopy.modflow.ModflowBas.load('MF_inputs/BaconWLR_year0.bas', ml)
+#bas_wlr = flopy.modflow.ModflowBas.load('MF_inputs/BaconWLR_year0.bas', ml)
 
 #Let's get mask of levees
 levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
