@@ -26,6 +26,454 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 from multiprocessing import Pool,cpu_count
 
 
+def rtemin(y,
+           tdrnge=300,
+           mw=0):
+    # *************************************************************
+    # *                       RTEMIN                              *
+    # * Subroutine for determining the rate of mineral sed input  *
+    # *************************************************************
+    #
+    #
+    # this section calculates the amount of mineral sediment
+    # input each year - based on the relative elevation of the
+    # marsh surface.  Y is the relative elevation of
+    # the core at at given time.
+    # tdrnge is the tidal range in meters
+    # mhw is the relative elevation of mhw in meters (0 in this case)
+    #
+    tdhght = (y - mw) / (tdrnge / 2.0)
+    if tdhght <= 0:
+        rtemin = 1.0
+    else:
+        rtemin = 1 - (min(tdhght, 1.0))
+    return rtemin
+
+
+def poresp(c, k1):
+    # *****************************************************
+    # *            PORESP                                 *
+    # * Subroutine for determining changes in pore space  *
+    # *****************************************************
+    #
+    # the next section calculates the pore space for each section.
+    # This is where changes due to compaction occur. I am assuming that
+    # all of the pore spaces are filled with water, and that any compaction
+    # is due to the loss of water and decrease in pore space volume.
+    # Pore space is assumed to be a function of the amount of material
+    # (both organic and mineral) that is in a given section, as well
+    # as the mass above that particular section.
+    #
+    # a = totorg(t2)
+    # b = min(t2)
+    # c = densabv(t2)
+    # d = oldorg(t2)
+    # e = min(t2)
+    #
+    # k1 is a constant that affects the curve for compaction
+    # k2 affects the relative importance of organic versus mineral
+    # matter in determining pore space.
+    # K2 > 1 - organic matter more important
+    # k2 < 1 - organic matter less important
+    # k2 = 1 - organic and mineral matter the same
+    #
+    #
+    # p1 & p2 are just temporary variable to make calculations easier.
+    #
+    poresp = 1 - (c / (k1 + c))
+    #	k2 = 0.1
+    #	poresp = (1/(1+(k1*c)))
+    #
+    # everything below here has been commented out in order to
+    # "simplify" the calculation of pore space.
+    #
+    #  	write(6,2005) a,b,c,d,e
+    #  	if (((k2*d)+e).le.0) then
+    #		p2 = 1
+    #	else
+    #		p2 = sqrt(((k2*a)+b)/((k2*d)+e))
+    #	end if
+    #	poresp = p1*p2
+
+    #     Last change:  SJD  23 Aug 2007    4:35 pm
+    return poresp
+
+
+def rtprod(d):
+    # c **********************************************
+    # c *  RTPROD                                    *
+    # c *  Root production subroutine                *
+    # c **********************************************
+    # c
+    # c
+    # c  What follows is a subroutine for determining organic
+    # c  production at various time / depths
+    # c  1/11/94 - I am changing this so root production decreases \
+    # c  exponentially with depth.
+    # c  sed2.for has the old version of root production.
+    # c
+    # c
+    # c parameters:
+    # c depth(t2) is the only parameter - it is passed
+    # c as the single variable "d"
+    # c
+    # c variables:
+    # c	undpro - total underground production (g/cm^3)
+    # c	kdist - controls the decay of the root production function
+    # c
+    undpro = 0.06
+    kdist = 0.40
+    rtprod = np.exp(-kdist * d) * kdist * undpro
+
+    # c
+    # c
+    # c this section calculates root production at a particular depth
+    # c based on the parameters/curve that are designated above.
+    # c
+    # c
+
+    # this is sed5.for  -  sediment accretion program for fortran
+    # this version uses an exponentially decreasing underground production function
+    # this change is in the subroutine - rtprod
+    #
+    # additionally - this version uses a new decomposition model - still 3
+    # different rates - but the rates for each year class are from an
+    # exponential decay curve.
+    #
+    # this version (4/20/2007) reads organic and mineral inputs from a file
+    # declaring variables
+    #
+    #      real*8 org, min, orgden, minden, h2oden, pore, minin, orgin
+    #      real*8 orgbd, minbd, bulkd, porg, depth, massabv, intelv, relelv
+    #      real*8 slr, subsid, totorg, totvol, orgvol, minvol, densabv
+    #      real*8 dt, mindev, porelim, refrac,h2oin
+    #      real*8 pctpore, tpore
+    #      real*8 acc1000, org1000, min1000, acc4000, org4000, min4000
+    #      real*8 acc4900, org4900, min4900, finelv
+    #      integer time, t2, endtim
+    #      dimension org(0:7000,4), min(0:7000), pore(0:7000), totvol(7000)
+    #      dimension orgbd(7000), minbd(7000), porg(7000), minvol(7000)
+    #      dimension depth(0:7000),  massabv(0:7000), densabv(0:7000)
+    #      dimension bulkd(7000),relelv(0:7000),totorg(0:7000),orgvol(7000)
+    #      dimension pctpore(0:7000)
+    #      dimension tpore(0:7000)
+    #      dimension minin(7000)
+    #      dimension orgin(7000)
+    #      dimension h2oin(7000)
+    #      dimension porelim(7000)
+    # c
+    return rtprod
+
+
+def decmp1(d, kdec1):
+    # c
+    # c *************************************************
+    # c *           DECMP1                              *
+    # c * Decomposition of "youngest" organic material  *
+    # c *************************************************
+    # c
+    # c
+    # c the next section is the decomposition subroutine FOR 1st year org matter
+    # c it is a function that gives a decomposition rate (from 0 to 1)
+    # c based on the depth of each section.
+    # c
+    # c decomp is a RATE (units g lost/g present) so it has
+    # c to be multiplied by the organic mass (org) of each section
+    # c
+    # c as with the production function the only thing that determines
+    # c this is the depth.
+    # c
+    # c Variables:
+    # c 	mx1 - maximum rate of decay for this age class
+    # c	kdec1 - k for exponential decay curve for this
+    # c 		age class decompostion curve
+    mx1 = 0.92
+
+    #	decmp1 = (exp(-kdec1*d))*mx1
+    decmp1 = np.exp(-kdec1 * d) * mx1
+    return decmp1
+
+
+def decmp2(d):
+    # c
+    # c
+    # c
+    # c *************************************************
+    # c *           DECMP2                              *
+    # c * Decomposition of "medium" organic material    *
+    # c *************************************************
+    # c
+    # c
+    # c
+    # c the next section is the decomposition subroutine FOR 2nd year org matter
+    # c it is a function that gives a decomposition rate (from 0 to 1)
+    # c based on the depth of each section.
+    # c
+    # c decomp is a RATE (units g lost/g present) so it has
+    # c to be multiplied by the organic mass (org) of each section
+    # c
+    #	real*8 function decmp2(d)
+    #	real*8 mx2, kdec2, d
+    # c
+    # c as with the production function the only thing that determines
+    # c this is the depth.
+    # c
+    # c Variables:
+    # c 	mx2 - maximum rate of decay for this age class
+    # c	kdec2 - k for exponential decay curve for this
+    # c 		age class decompostion curve
+    mx2 = 0.37
+    kdec2 = 0.57
+    decmp2 = (np.exp(-kdec2 * d)) * mx2
+    return decmp2
+
+
+def decmp3(d):
+    # c
+    # c
+    # c
+    # c *************************************************
+    # c *           DECMP3                              *
+    # c * Decomposition of "oldest" organic material    *
+    # c *************************************************
+    # c
+    # c
+    # c
+    # c the next section is the decomposition subroutine FOR old org matter
+    # c it is a function that gives a decomposition rate (from 0 to 1)
+    # c based on the depth of each section.
+    # c
+    # c The rates are LOWEST for this group of organic material
+    # c
+    # c decomp is a RATE (units g lost/g present) so it has
+    # c to be multiplied by the organic mass (org) of each section
+    # c
+    #	real*8 mx3, kdec3, d
+    # c
+    # c as with the production function the only thing that determines
+    # c this is the depth.
+    # c
+    # c Variables:
+    # c 	mx3 - maximum rate of decay for this age class
+    # c	kdec3 - k for exponential decay curve for this
+    # c 		age class decompostion curve
+    mx3 = 0.16
+    kdec3 = 0.1
+    # c
+    decmp3 = (np.exp(-kdec3 * d)) * mx3
+    #	end
+    return decmp3
+
+
+def sedcalc(endtim=40,
+            h2oden=1.00,
+            h2oin=pd.read_csv("h2oin.csv"),  # Initial pore space (fraction)
+            #################################This file needs to be in the working
+            #################################directory
+            intelv=-26,
+            k1=2.5,  # Consolidation constant
+            mindev=0.0,
+            minden=2.61,  # Mineral particle density (g cm-2)
+            minin=pd.read_csv("minin.csv"),  ##Surface mineral matter deposition (g/cm2)
+            #################################This file needs to be in the working
+            #################################directory
+            orgden=1.14,  # Organic particle density (g cm-2)
+            orgin=pd.read_csv("orgin.csv"),  # Surface organic matter deposition (g/cm2)
+            #################################This file needs to be in the working
+            #################################directory
+            porelim=pd.read_csv("porelim.csv"),  # Final pore space (fraction)
+            #################################This file needs to be in the working
+            #################################directory
+            refrac=0.4,
+            slr=0.0,  # Sea level rise (cm yr -1)
+            strint=5.0,
+            strdev=0.3,
+            subsid=0.0,  # Subsidence (cm yr -1) from gas withdrawal
+            kdec1=0.41
+            ):
+    # h20in is a percent.  It has to be converted to a volume
+    # to be useful for calculations.  The conversion from % to volume is:
+    # porespace volume = ((%)/(1-%))*(minvol + orgvol)
+    # Let's initialize bulkd
+    bulkd = np.zeros(endtim + 1)
+    # Let's initialize densabv
+    densabv = np.zeros(endtim + 1)
+
+    # Let's initialize depth
+    depth = np.zeros(endtim + 1)
+
+    # Let's initialize massabv
+    massabv = np.zeros(endtim + 1)
+
+    # Let's initialize minbd
+    minbd = np.zeros(endtim + 1)
+
+    # Let's initialize mini (min is a reserved name in Python)
+    mini = np.zeros(endtim + 1)
+
+    # Let's initialize minvol
+    minvol = np.zeros(endtim + 1)
+
+    # Let's initialize org
+    org = np.zeros((endtim + 1, 5))
+
+    # Let's initialize orgbd
+    orgbd = np.zeros(endtim + 1)
+
+    # Let's initialize orgvol
+    orgvol = np.zeros(endtim + 1)
+
+    # Let's initialize pctpore
+    pctpore = np.zeros(endtim + 1)
+
+    # Let's initialize pore
+    pore = np.zeros(endtim + 1)
+
+    # Let's initialize porg
+    porg = np.zeros(endtim + 1)
+
+    # Let's initialize relelv
+    relelv = np.zeros(endtim + 1)
+
+    # Let's initialize totorg
+    totorg = np.zeros(endtim + 1)
+
+    # Let's initialize totvol
+    totvol = np.zeros(endtim + 1)
+
+    # Let's initialize tpore
+    tpore = np.zeros(endtim + 1)
+
+    # ************************************************
+    # this is the beginning of the main control loop *
+    # ************************************************
+
+    for time in range(1, endtim + 1):
+
+        # c this section moves all values down one section
+        # c before the next round of growth, new input and decomposition
+        # c
+
+        for t2 in range(time - 1, -1, -1):
+            org[t2 + 1, 4] = org[t2, 4]
+            org[t2 + 1, 3] = org[t2, 3] + org[t2, 2]
+            org[t2 + 1, 2] = org[t2, 1]
+            org[t2 + 1, 1] = 0
+            mini[t2 + 1] = mini[t2]
+            pctpore[t2 + 1] = pctpore[t2]
+            tpore[t2 + 1] = tpore[t2]
+
+        # c ************************************************************
+        # c * these are the new inputs of material onto the surface of *
+        # c * the marsh (into the first position in the array).        *
+        # c ************************************************************
+
+        org[1, 1] = float(orgin.loc[time - 1]) * (1 - refrac)
+        org[1, 4] = float(orgin.loc[time - 1]) * (refrac)
+        mini[1] = float(minin.loc[time - 1]) * rtemin(relelv[time - 1])
+        tpore[1] = 1
+        pctpore[1] = float(h2oin.loc[0])
+        pore[1] = ((float(h2oin.loc[time - 1]) / (1 - float(h2oin.loc[time - 1]))) * (
+                    (org[1, 1] / orgden) + (mini[1] / minden)))
+
+        # ******************************************************************
+        # * the following section is where the "yearly" calculations       *
+        # * take place.  It combines all of the other calculation sections *
+        # * from earlier versions of the model (7/10/93).                  *
+        # ******************************************************************
+        #
+        # this section calculates the volume of each section
+        # based on the mass of organic matter, mineral matter, and
+        # water.  It will also use a compaction subfunction in
+        # the future. Compaction will be a function of the
+        # mass that is on top of the current section.
+        #
+        #
+        # this is where the new roots and rhizomes are put into
+        # the sediment.  rtprod is a subroutine/function
+        # that will determine root production based on depth/time
+        #
+        # this is also the decomposition section.  Again decomp is
+        # a subroutine based on depth/time.
+        #
+
+        for t2 in range(1, time + 1):
+
+            istep = 10
+            dt = 1 / istep
+            for ie in range(1, istep + 1):
+                totorg[t2] = org[t2, 1] + org[t2, 2] + org[t2, 3] + org[t2, 4]
+                massabv[t2] = massabv[t2 - 1] + totorg[t2 - 1] + mini[t2 - 1] + pore[t2 - 1]
+                if depth[t2 - 1] == 0:
+                    densabv[t2] = 0
+                else:
+                    densabv[t2] = massabv[t2] / depth[t2 - 1]
+                orgvol[t2] = totorg[t2] / orgden
+                minvol[t2] = mini[t2] / minden
+                if t2 <= 1:
+                    pctpore[t2] = pctpore[t2]
+                else:
+                    dum1 = float(h2oin.loc[time - 1])
+                    dum2 = float(porelim.loc[time - 1])
+                    tpore[t2] = tpore[t2] - (tpore[t2] - tpore[t2] * poresp(densabv[t2], k1)) * dt
+                    pctpore[t2] = dum2 + (dum1 - dum2) * tpore[t2]
+
+                pore[t2] = ((pctpore[t2] / (1 - pctpore[t2])) * (orgvol[t2] + minvol[t2]))
+
+                # c the line above is for running the model without compaction
+                # c pore space is constant for all sections.
+                # c
+                totvol[t2] = orgvol[t2] + minvol[t2] + pore[t2]
+                depth[t2] = depth[t2 - 1] + totvol[t2]
+                porg[t2] = totorg[t2] / (totorg[t2] + mini[t2])
+                bulkd[t2] = (totorg[t2] + mini[t2]) / totvol[t2]
+                orgbd[t2] = totorg[t2] / totvol[t2]
+                minbd[t2] = mini[t2] / totvol[t2]
+                org[t2, 1] = org[t2, 1] + ((dt * (rtprod(depth[t2]) * totvol[t2])) * (1 - refrac)) \
+                             - ((dt * (((decmp1(depth[t2], kdec1)) * org[t2, 1]))))
+                org[t2, 2] = org[t2, 2] - \
+                             (dt * (((decmp2(depth[t2])) * org[t2, 2])))
+                org[t2, 3] = org[t2, 3] \
+                             - (dt * ((decmp3(depth[t2])) * org[t2, 3]))
+                org[t2, 4] = org[t2, 4] + ((dt * (rtprod(depth[t2]) * totvol[t2])) * refrac)
+
+        # c
+        # c commenting out the 3 "&" lines above, cuts out decompostion
+        # c
+        # c           write(29,*) decmp3(depth(t2)), depth(t2)
+        # c
+
+        # c
+        # c **********************************************************************
+        # c * this section calculates the relative elevation of the marsh at the *
+        # c * end of the year                                                    *
+        # c **********************************************************************
+        # c
+
+        relelv[time] = intelv + depth[time] - (slr * time) - (subsid * time)
+
+    sksxx = pd.DataFrame({"totorg": totorg[1:],
+                          "min": mini[1:],
+                          "pore": pore[1:],
+                          "totvol": totvol[1:],
+                          "orgvol": orgvol[1:],
+                          "minvol": minvol[1:],
+                          "porg": porg[1:],
+                          "bulkd": bulkd[1:],
+                          "depth": depth[1:],
+                          "massabv": massabv[1:],
+                          "densabv": densabv[1:],
+                          "relelv": np.flip(relelv, 0)[1:],
+                          "time": np.array(range(1, endtim + 1))})
+    sksxx = sksxx.reindex(
+        columns=['totorg', "min", "pore", "totvol", "orgvol", "minvol", "porg", "bulkd", "depth", "massabv", "densabv",
+                 "relelv", "time"])
+
+    sksxx.to_csv("sksxx.csv", index=False)
+
+    return sksxx
+
+
 def subcalc_2021_npy(fom,
                  fomund,
                  dtwm,
@@ -538,6 +986,9 @@ SC_Input={'fom':np.load('fom_0.npy'),
 #Dataframe with average subsidence
 avg_sub_df=pd.DataFrame(columns = ['Year', 'Sub_r_ft_yr'])
 
+#Let´s run SEDCALC
+sedcalc_ts=sedcalc(endtim=End_Year+1,)
+
 #3. Let's loop through years now
 
 
@@ -550,6 +1001,7 @@ for year in range(Start_Year,End_Year+1):
         subprocess.check_output(["mf2005", "Bacon_fix.nam"])
         #Let's set rice and wetland to constant head
         bas.ibound[0][rice_mask] = -1
+        bas.ibound[0][wetland_mask] = -1
         bas.write_file()
 
     #Let´s add constant head cells for wetlands and rice
