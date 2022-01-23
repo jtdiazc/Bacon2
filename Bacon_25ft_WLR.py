@@ -987,7 +987,7 @@ SC_Input={'fom':np.load('fom_0.npy'),
 avg_sub_df=pd.DataFrame(columns = ['Year', 'Sub_r_ft_yr'])
 
 #Let´s run SEDCALC
-sedcalc_ts=sedcalc(endtim=End_Year+1,)
+sedcalc_ts=pd.read_csv("SEDCALC_Accretion.csv")
 
 #3. Let's loop through years now
 
@@ -996,17 +996,20 @@ for year in range(Start_Year,End_Year+1):
     
     # 3.1 Initiate MODFLOW for year 1
     if year==Start_Year:
-        ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
+        ml = flopy.modflow.Modflow.load('MF_inputs/BaconWLR.nam')
         ml.write_input()
-        subprocess.check_output(["mf2005", "Bacon_fix.nam"])
+        subprocess.check_output(["mf2005", "Bacon_fix_WLR.nam"])
         #Let's set rice and wetland to constant head
         bas.ibound[0][rice_mask] = -1
         bas.ibound[0][wetland_mask] = -1
+        #Let's add constant heads for rice
+        bas.strt[0][rice_mask] = ml.dis.top[rice_mask]
         bas.write_file()
 
-    #Let´s add constant head cells for wetlands and rice
+    #Let´s add wetlands accretion to land surface
+    ml.dis.top[wetland_mask]=ml.dis.top[wetland_mask]+float(sedcalc_ts.loc[sedcalc_ts.Year==year,"Yearly Accretion (ft)"])
 
-    #3.2 Let's run SUBCALC
+
     
     #Peat thickness
     PT_thck=ml.dis.thickness[0]
@@ -1017,33 +1020,10 @@ for year in range(Start_Year,End_Year+1):
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
     t0 = datetime.datetime.now()
-    SC_Input=subcalc_2021_npy(SC_Input['fom'],
-                              SC_Input['fomund'],
-                              DTW/3.28084,
-                              PT_thck/3.28084*100,
-                              year,
-                              st=SC_Input['st'],
-                              km=SC_Input['km'],
-                              firstkm=SC_Input['firstkm'],
-                              vmax=SC_Input['vmax'],
-                              bd=SC_Input['bd'],
-                              bdund=SC_Input['bdund'],
-                              massmin=SC_Input['massmin']
-                              )
 
     tf = datetime.datetime.now()
     print(tf-t0)
-    subs=SC_Input['tdelev']*3.28084/100
-    #For levees, subsidence is zer0
-    subs[levees]=0
-    #where subsidence is not na, we update top elevation by subsidence
-    ml.dis.top[~np.isnan(subs)]=np.maximum(ml.dis.top[~np.isnan(subs)]-subs[~np.isnan(subs)],ml.dis.botm[0][~np.isnan(subs)])
-    
-    #average subsidence
-    subs_avg=np.average(subs[subs>0])
-    avg_sub_df=avg_sub_df.append({"Year":year,'Sub_r_ft_yr':subs_avg},ignore_index = True)
-    
-    #Let's excavate drains
+
     #We sample elevations
     drns['top']=ml.dis.top[drns['i'],drns['j']]
     #Let's convert recarray to pandas
