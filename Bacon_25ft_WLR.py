@@ -1009,8 +1009,10 @@ for year in range(Start_Year,End_Year+1):
     #Let´s add wetlands accretion to land surface
     ml.dis.top[wetland_mask]=ml.dis.top[wetland_mask]+float(sedcalc_ts.loc[sedcalc_ts.Year==year,"Yearly Accretion (ft)"])
 
+    #Let´s add constant head cells for wetlands
+    bas.strt[0][wetland_mask] = ml.dis.top[wetland_mask]
+    bas.write_file()
 
-    
     #Peat thickness
     PT_thck=ml.dis.thickness[0]
     
@@ -1027,25 +1029,25 @@ for year in range(Start_Year,End_Year+1):
     #We sample elevations
     drns['top']=ml.dis.top[drns['i'],drns['j']]
     #Let's convert recarray to pandas
-    drns_pd=pd.DataFrame(drns)
+#    drns_pd=pd.DataFrame(drns)
     #Drains that will remain in layer 1
     #cond=(drns['k']==0)&(drns['elev']-subs_avg>=drns['PT_bot'])
-    cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg>=drns_pd.PT_bot)
-    drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
+#    cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg>=drns_pd.PT_bot)
+#    drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
     #Drains that will switch from layer 1 to layer 2
-    cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg<drns_pd.PT_bot)
-    drns_pd.loc[cond,'k']=1
-    drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
+ #   cond=(drns_pd.k==0)&(drns_pd.elev-subs_avg<drns_pd.PT_bot)
+ #   drns_pd.loc[cond,'k']=1
+ #   drns_pd.loc[cond,'elev']=drns_pd[cond]['elev']-subs_avg
     #Drains that will remain in layer 2
-    cond=(drns_pd.k==1)&(drns_pd.elev-subs_avg>=drns_pd.TM_bot)
-    drns_pd.loc[cond,'elev']=drns[cond]['elev']-subs_avg
-    drns=drns_pd.to_records(index=False)
+    #cond=(drns_pd.k==1)&(drns_pd.elev-subs_avg>=drns_pd.TM_bot)
+    #drns_pd.loc[cond,'elev']=drns[cond]['elev']-subs_avg
+    #drns=drns_pd.to_records(index=False)
 
     #Convert back to recarray
     
     #LEt's update drains
-    ml.drn.stress_period_data[0][['k','elev']]=drns[['k','elev']]
-    ml.write_input()
+ #   ml.drn.stress_period_data[0][['k','elev']]=drns[['k','elev']]
+ #   ml.write_input()
     #Let's update constant heads
     
     for layer in range(3):
@@ -1053,7 +1055,7 @@ for year in range(Start_Year,End_Year+1):
     bas.write_file()
     #Let's run MODFLOW
 
-    subprocess.check_output(["mf2005", "Bacon_fix.nam"])
+    subprocess.check_output(["mf2005", "Bacon_fix_WLR.nam"])
     
     #Update heads
     h = flopy.utils.HeadFile("Bacon.hds", model=ml)
@@ -1069,21 +1071,21 @@ for year in range(Start_Year,End_Year+1):
     #divided by the remaining PT + TM
     drns['Grad'][cond]=(-drns['h_PT'][cond]+drns['h_SP'][cond])/(drns['elev'][cond]-drns['TM_bot'][cond])
     #If water table is in the tidal muc
-    cond=np.where(drns['h_PT']==ml.hdry)
+    #cond=np.where(drns['h_PT']==ml.hdry)
     #Gradient is the head difference between the tidal mud and the sand 
     #divided by the remaining TM
-    drns['Grad'][cond]=(-drns['h_TM'][cond]+drns['h_SP'][cond])/(drns['elev'][cond]-drns['TM_bot'][cond])    
+    #drns['Grad'][cond]=(-drns['h_TM'][cond]+drns['h_SP'][cond])/(drns['elev'][cond]-drns['TM_bot'][cond])
     flopy.export.shapefile_utils.recarray2shp(drns, 
                                               geoms=polygons, 
-                                              shpname=os.path.join(shp_dir,"DRN_"+str(year)+".shp"), 
+                                              shpname=os.path.join(shp_dir,"WLR_DRN_"+str(year)+".shp"),
                                               epsg=grid.epsg)
-    #Let's export subsidence
-    flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Subs_ft_"+str(year)+".tif"), subs)
+    #Let's export top elevation
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Top_WLR_ft_"+str(year)+".tif"), ml.dis.top)
     #Let's export heads
-    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_Pt_ft_" + str(year) + ".tif"), heads[0])
-    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_TM_ft_" + str(year) + ".tif"), heads[1])
-    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_SP_ft_" + str(year) + ".tif"), heads[2])
-    ti=datetime.datetime.now()
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "WLR_H_Pt_ft_" + str(year) + ".tif"), heads[0])
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "WLR_H_TM_ft_" + str(year) + ".tif"), heads[1])
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "WLR_H_SP_ft_" + str(year) + ".tif"), heads[2])
+    #ti=datetime.datetime.now()
     drns_pd=pd.DataFrame(drns)
 
 
@@ -1093,16 +1095,16 @@ for year in range(Start_Year,End_Year+1):
     toedrains_dum_rec=toedrains_dum.to_records()
     flopy.export.shapefile_utils.recarray2shp(toedrains_dum_rec,
                                               geoms=polygons_toedrn,
-                                              shpname=os.path.join(shp_dir,"TOEDRNS_"+str(year)+".shp"),
+                                              shpname=os.path.join(shp_dir,"WLR_TOEDRNS_"+str(year)+".shp"),
                                               epsg=grid.epsg)
 
     drns_pd["Year"]=year
-    drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
+    drns_pd.to_csv(os.path.join(np_dir,"WLR_DRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
-    print(year,ti-t0)
+    #print(year,ti-t0)
 
 #Let's export average subsidence dataframe
-avg_sub_df.to_csv(os.path.join(np_dir,"Avg_Sub.csv"),index=False)
+#avg_sub_df.to_csv(os.path.join(np_dir,"Avg_Sub.csv"),index=False)
          
         
         
