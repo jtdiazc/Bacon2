@@ -931,10 +931,12 @@ toedrains_in_rec=toedrains_in.to_records
 #Let´s get mask of rice
 rice_df=pd.read_csv(r"C:\Projects\5630\12072021\Rice.csv")
 rice_mask=list(zip(rice_df.row,rice_df.column_lef))
+rice_mask=tuple(np.array(rice_mask).T)
 
 #Let´s get mask of wetlands
 wetland_df=pd.read_csv(r"C:\Projects\5630\12072021\Wetlands.csv")
 wetland_mask=list(zip(wetland_df.row,wetland_df.column_lef))
+wetland_mask=tuple(np.array(wetland_mask).T)
 
 
 #We sample elevations
