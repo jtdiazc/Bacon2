@@ -447,10 +447,11 @@ End_Year=2070
 ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
 
 #Let's export shapefile of grid
-#ml.dis.export(os.path.join(shp_dir, "Grid.shp"))
 
+ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+#ml.dis.export(os.path.join(shp_dir, "Grid.shp"))
 grid = ml.modelgrid
-grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+#grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 nrg=ml.nrow
 ncg=ml.ncol
 
@@ -477,7 +478,13 @@ toedrains_in=toedrains_in.drop(['k','elev', 'cond', 'iface', 'top', 'PT_bot', 'T
 #Let's convert to recarray
 toedrains_in_rec=toedrains_in.to_records
 
+#Let´s get mask of rice
+rice_df=pd.read_csv(r"C:\Projects\5630\12072021\Rice.csv")
+rice_mask=list(zip(rice_df.row,rice_df.column_lef))
 
+#Let´s get mask of wetlands
+wetland_df=pd.read_csv(r"C:\Projects\5630\12072021\Wetlands.csv")
+wetland_mask=list(zip(wetland_df.row,wetland_df.column_lef))
 
 
 #We sample elevations
@@ -541,7 +548,12 @@ for year in range(Start_Year,End_Year+1):
         ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
         ml.write_input()
         subprocess.check_output(["mf2005", "Bacon_fix.nam"])
-        
+        #Let's set rice and wetland to constant head
+        bas.ibound[0][rice_mask] = -1
+        bas.write_file()
+
+    #Let´s add constant head cells for wetlands and rice
+
     #3.2 Let's run SUBCALC
     
     #Peat thickness
