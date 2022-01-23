@@ -25,6 +25,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from multiprocessing import Pool,cpu_count
 
+#We set directory
+os.chdir(r"C:\Projects\5630\12072021")
 
 def rtemin(y,
            tdrnge=300,
