@@ -1082,7 +1082,7 @@ for year in range(Start_Year,End_Year+1):
                                               shpname=os.path.join(shp_dir,"WLR_DRN_"+str(year)+".shp"),
                                               epsg=grid.epsg)
     #Let's export top elevation
-    flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Top_WLR_ft_"+str(year)+".tif"), ml.dis.top)
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir,"Top_WLR_ft_"+str(year)+".tif"), ml.dis.top[:])
     #Let's export heads
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "WLR_H_Pt_ft_" + str(year) + ".tif"), heads[0])
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "WLR_H_TM_ft_" + str(year) + ".tif"), heads[1])
