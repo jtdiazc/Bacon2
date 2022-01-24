@@ -1103,7 +1103,9 @@ for year in range(Start_Year,End_Year+1):
                                               epsg=grid.epsg)
 
     drns_pd["Year"]=year
+    toedrains_dum["Year"]=year
     drns_pd.to_csv(os.path.join(np_dir,"WLR_DRNS"+str(year)+".csv"),index=False)
+    toedrains_dum.to_csv(os.path.join(np_dir,"WLR_TOEDRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
     #print(year,ti-t0)
 
