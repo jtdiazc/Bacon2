@@ -455,7 +455,7 @@ nrg=ml.nrow
 ncg=ml.ncol
 
 #Let's export grid shapefile
-ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
+#ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
 #Let's export hydraulic conductivities raster
 lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
