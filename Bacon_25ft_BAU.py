@@ -541,6 +541,20 @@ for row, col in zip(CH_df["row"], CH_df["col"]):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
+#Let's export shapefile of levees
+Levees_df = pd.DataFrame({"row":levees[0],
+                   "col":levees[1]})
+Levees_rec = Levees_df.to_records(index=False)
+
+vertices = []
+for row, col in zip(Levees_rec["row"], Levees_rec["col"]):
+    vertices.append(grid.get_cell_vertices(row, col))
+Levees_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+flopy.export.shapefile_utils.recarray2shp(Levees_rec,
+                                          geoms=Levees_CH,
+                                          shpname=os.path.join(shp_dir, "Levees.shp"),
+                                          epsg=grid.epsg)
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
