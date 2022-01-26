@@ -530,6 +530,17 @@ for row, col in zip(toedrains_in['i'], toedrains_in['j']):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
+#Let's create constant head cells shapefile
+CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
+                   "col":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[1]})
+
+
+
+vertices = []
+for row, col in zip(CH_df["row"], CH_df["col"]):
+    vertices.append(grid.get_cell_vertices(row, col))
+polygons_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
@@ -574,6 +585,8 @@ for year in range(Start_Year,End_Year+1):
     ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
     #levels = np.arange(int(np.min(heads[2]))+1, int(np.sort(np.unique(heads[0]))[-2]), 2)
     #levels = np.arange(-20,0, 5)
+
+    #Create cross section
     levels =[-16,-14,-12,-8,-4,0,4]
     fig = plt.figure(figsize=(18, 5))
     ax = fig.add_subplot(1, 1, 1)
@@ -643,6 +656,7 @@ for year in range(Start_Year,End_Year+1):
     #LEt's update drains
     ml.drn.stress_period_data[0][['k','elev']]=drns[['k','elev']]
     ml.write_input()
+
     #Let's update constant heads
     
     for layer in range(3):
@@ -701,6 +715,17 @@ for year in range(Start_Year,End_Year+1):
 
     #Let's export top elevation
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "Top_ft_" + str(year) + ".tif"), ml.dis.top[:])
+
+
+    #Let's export constant heads
+    CH_df["CH"]=bas.strt[0][CH]
+    CH_rec=CH_df.to_records(index=False)
+
+    flopy.export.shapefile_utils.recarray2shp(CH_rec,
+                                              geoms=polygons_CH,
+                                              shpname=os.path.join(shp_dir,"CH_"+str(year)+".shp"),
+                                              epsg=grid.epsg)
+
 
 
     print(year,ti-t0)
