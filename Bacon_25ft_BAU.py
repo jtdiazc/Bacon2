@@ -587,7 +587,7 @@ for year in range(Start_Year,End_Year+1):
     #levels = np.arange(-20,0, 5)
 
     #Create cross section
-    levels =[-24,-22,-20,-18,-16,-14,-12,-8,-4,0,4]
+    levels =[-24,-22,-20,-18,-16,-14,-12,-8,-6,-4,-2,0,2,4]
     fig = plt.figure(figsize=(18, 5))
     ax = fig.add_subplot(1, 1, 1)
     line = flopy.plot.plotutil.shapefile_get_vertices(
