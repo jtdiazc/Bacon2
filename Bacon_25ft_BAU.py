@@ -698,6 +698,11 @@ for year in range(Start_Year,End_Year+1):
     drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
     toedrains_dum.to_csv(os.path.join(np_dir,"TOEDRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
+
+    #Let's export top elevation
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "Top_ft_" + str(year) + ".tif"), ml.dis.top[:])
+
+
     print(year,ti-t0)
 
 #Let's export average subsidence dataframe
