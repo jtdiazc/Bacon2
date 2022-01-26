@@ -5,6 +5,7 @@ Created on Mon Dec 13 16:20:43 2021
 @author: JDiaz
 """
 
+import sys
 import os
 import datetime
 import pandas as pd
@@ -13,10 +14,12 @@ import pickle
 import operator
 import subprocess
 import flopy
+import matplotlib as mpl
 import time
 from math import exp, log, log10, isnan
 import matplotlib.pyplot as plt
 import csv
+import platform
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -451,6 +454,29 @@ grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 nrg=ml.nrow
 ncg=ml.ncol
 
+#Let's export grid shapefile
+ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
+
+#Let's export hydraulic conductivities raster
+lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
+flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
+
+#Let's plot cross section
+
+
+fig = plt.figure(figsize=(18, 5))
+ax = fig.add_subplot(1, 1, 1)
+line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\CrossSection\X_Sec2.shp")
+xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
+
+patches = xsect.plot_ibound()
+patches = xsect.plot_bc("DRN", color="pink")
+#patches = xsect.plot_bc("CHD", color="red")
+linecollection = xsect.plot_grid()
+#cb = plt.colorbar(csa, shrink=0.75)
+plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Report\Longer_Version\CrossSection\XSec.svg")
+
+
 subsidence=np.zeros(shape=(nrg,ncg))
 
 class_length=int(nrg/n_cpu)
@@ -544,6 +570,27 @@ for year in range(Start_Year,End_Year+1):
     #Depth to groundwater
     h = flopy.utils.HeadFile("Bacon.hds", model=ml)
     heads=h.get_data()
+
+    ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+    #levels = np.arange(int(np.min(heads[2]))+1, int(np.sort(np.unique(heads[0]))[-2]), 2)
+    #levels = np.arange(-20,0, 5)
+    levels =[-16,-14,-12,-8,-4,0,4]
+    fig = plt.figure(figsize=(18, 5))
+    ax = fig.add_subplot(1, 1, 1)
+    line = flopy.plot.plotutil.shapefile_get_vertices(
+        r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\CrossSection\X_Sec2.shp")
+    xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
+
+    patches = xsect.plot_ibound()
+    patches = xsect.plot_bc("DRN", color="pink")
+    # patches = xsect.plot_bc("CHD", color="red")
+    linecollection = xsect.plot_grid()
+    contour_set = xsect.contour_array(
+        heads, masked_values=[999.0], head=heads, levels=levels, colors="k"
+    )
+    plt.clabel(contour_set, fmt="%.1f", colors="k", fontsize=11)
+    plt.savefig(os.path.join(shp_dir,"XSec_"+str(year)+".svg"))
+
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
     t0 = datetime.datetime.now()
