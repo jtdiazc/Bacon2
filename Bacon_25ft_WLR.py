@@ -969,6 +969,28 @@ for row, col in zip(toedrains_in['i'], toedrains_in['j']):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
+#Let's create wetlands shapefile template
+vertices = []
+for row, col in zip(wetland_df.row, wetland_df.column_lef):
+    vertices.append(grid.get_cell_vertices(row, col))
+polygons_wetlands = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+flopy.export.shapefile_utils.recarray2shp(wetland_df[["row","column_lef"]].to_records(index=False),
+                                          geoms=polygons_wetlands,
+                                          shpname=os.path.join(shp_dir, "Wetlands.shp"),
+                                          epsg=grid.epsg)
+
+#Let's create rice shapefile template
+vertices = []
+for row, col in zip(rice_df.row, rice_df.column_lef):
+    vertices.append(grid.get_cell_vertices(row, col))
+polygons_wetlands = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+flopy.export.shapefile_utils.recarray2shp(rice_df[["row","column_lef"]].to_records(index=False),
+                                          geoms=polygons_wetlands,
+                                          shpname=os.path.join(shp_dir, "Rice.shp"),
+                                          epsg=grid.epsg)
+
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
