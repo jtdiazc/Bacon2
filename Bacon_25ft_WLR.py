@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 from multiprocessing import Pool,cpu_count
 
 #We set directory
-os.chdir(r"C:\Projects\5630\12072021")
+os.chdir(r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\Final")
 
 def rtemin(y,
            tdrnge=300,
@@ -870,16 +870,16 @@ def subcalc_2021_npy(fom,
 t0=datetime.datetime.now()
 
 #We set directory
-os.chdir(r"C:\Projects\5630\12072021")
+os.chdir(r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\Final")
 
 #Numpy arrays
-np_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster\Numpy"
+np_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\Numpy"
 
 #Shapefiles
-shp_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\20211207\Output"
+shp_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Final"
 
 #Rasters
-ras_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster\20211207\Output"
+ras_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster\Final"
 
 ###Number of processors
 n_cpu=cpu_count()
@@ -922,7 +922,7 @@ Active_cells=np.where(ibound!=0)
 levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
 
 #Let's get indexes of toedrains
-toedrains_in=pd.read_csv(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\Drains\ToeDrains_Index_Flopy.csv")
+toedrains_in=pd.read_csv(r"ToeDrains_Index_Flopy.csv")
 toedrains_in=toedrains_in.drop(['k','elev', 'cond', 'iface', 'top', 'PT_bot', 'TM_bot','h_PT', 'h_TM', 'h_SP', 'Grad'], axis=1)
 
 #Let's convert to recarray
@@ -991,7 +991,39 @@ SC_Input={'fom':np.load('fom_0.npy'),
 avg_sub_df=pd.DataFrame(columns = ['Year', 'Sub_r_ft_yr'])
 
 #Let´s run SEDCALC
-sedcalc_ts=pd.read_csv("SEDCALC_Accretion.csv")
+sedcalc_dum=sedcalc(endtim=54)
+
+relelv_dum=sedcalc_dum["relelv"].values
+depth_dum=sedcalc_dum["depth"].values
+porg_dum=sedcalc_dum["porg"].values
+bulkd_dum=sedcalc_dum["bulkd"].values
+acc_rate_dum=pd.DataFrame(columns=["Year","Yearly Accretion (cm)","Yearly Accretion (ft)"])
+totC_dum=pd.DataFrame(columns=["Year","Yearly Accretion (cm)","gC/cm3","gC/cm2"])
+year=Start_Year
+sim_years=54
+for i in range(sim_years - 1):
+    # Index for the backwards sum
+    i_bw = sim_years - i - 1
+
+    #        else:
+    acc_rate_dum_dum = pd.DataFrame({"Year": [year],
+                                     "Yearly Accretion (cm)": [(depth_dum[i_bw] - depth_dum[i_bw - 1])],
+                                     "Yearly Accretion (ft)": [(depth_dum[i_bw] - depth_dum[i_bw - 1]) * 0.0328084]})
+    totC_dum_dum = pd.DataFrame({"Year": [year],
+                                 "Yearly Accretion (cm)": [(depth_dum[i_bw] - depth_dum[i_bw - 1])],
+                                 "gC/cm3": [porg_dum[i_bw] * bulkd_dum[i_bw] / 2],
+                                 "gC/cm2": [
+                                     (depth_dum[i_bw] - depth_dum[i_bw - 1]) * porg_dum[i_bw] * bulkd_dum[i_bw] / 2]})
+
+    acc_rate_dum = acc_rate_dum.append(acc_rate_dum_dum, ignore_index=True)
+    totC_dum = totC_dum.append(totC_dum_dum, ignore_index=True)
+    year = year + 1
+#Let's export the total carbon table as a csv file
+totC_dum.to_csv("SEDCALC_totC_output.csv",index=False)
+# Let's export the SEDCALC accretion rates
+acc_rate_dum.to_csv("SEDCALC_Accretion.csv", index=False)
+#sedcalc_ts=pd.read_csv("SEDCALC_Accretion.csv")
+sedcalc_ts=acc_rate_dum
 
 #3. Let's loop through years now
 
