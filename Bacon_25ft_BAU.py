@@ -556,6 +556,32 @@ flopy.export.shapefile_utils.recarray2shp(Levees_rec,
                                           shpname=os.path.join(shp_dir, "Levees.shp"),
                                           epsg=grid.epsg)
 
+#Let's export head observations shapefile
+hobs = flopy.modflow.ModflowHob.load('Bacon.hob', ml)
+
+hobs_row=[]
+hobs_col=[]
+hobs_nam=[]
+hobs_value=[]
+for hob in range(len(hobs.obs_data)):
+    hobs_row.append(hobs.obs_data[hob].row)
+    hobs_col.append(hobs.obs_data[hob].column)
+    hobs_nam.append(hobs.obs_data[hob].time_series_data['obsname'][0])
+    hobs_value.append(hobs.obs_data[hob].time_series_data['hobs'][0])
+
+vertices = []
+for row, col in zip(hobs_row, hobs_col):
+    vertices.append(grid.get_cell_vertices(row, col))
+
+HOBS = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value],names=['row', 'column', 'obsname','hobs'])
+
+flopy.export.shapefile_utils.recarray2shp(hobs_rec,
+                                          geoms=HOBS,
+                                          shpname=os.path.join(shp_dir, "Hobs.shp"),
+                                          epsg=grid.epsg)
+
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
 
