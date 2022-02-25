@@ -448,14 +448,15 @@ End_Year=2070
 
 #Let's load model
 ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
+ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 
 grid = ml.modelgrid
-grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+#grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 nrg=ml.nrow
 ncg=ml.ncol
 
 #Let's export grid shapefile
-#ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
+ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
 #Let's export hydraulic conductivities raster
 lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
@@ -563,11 +564,13 @@ hobs_row=[]
 hobs_col=[]
 hobs_nam=[]
 hobs_value=[]
+hobs_layer=[]
 for hob in range(len(hobs.obs_data)):
     hobs_row.append(hobs.obs_data[hob].row)
     hobs_col.append(hobs.obs_data[hob].column)
     hobs_nam.append(hobs.obs_data[hob].time_series_data['obsname'][0])
     hobs_value.append(hobs.obs_data[hob].time_series_data['hobs'][0])
+    hobs_layer.append(hobs.obs_data[hob].layer)
 
 vertices = []
 for row, col in zip(hobs_row, hobs_col):
@@ -575,7 +578,8 @@ for row, col in zip(hobs_row, hobs_col):
 
 HOBS = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
-hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value],names=['row', 'column', 'obsname','hobs'])
+hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value,
+                            hobs_layer],names=['row', 'column', 'obsname','hobs','layer'])
 
 flopy.export.shapefile_utils.recarray2shp(hobs_rec,
                                           geoms=HOBS,
