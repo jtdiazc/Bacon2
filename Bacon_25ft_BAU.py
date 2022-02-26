@@ -650,6 +650,12 @@ for year in range(Start_Year,End_Year+1):
 
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
+
+    #Let's export water table contours
+    wt[wt == np.unique(wt)[-1]] = 3.83
+    flopy.export.utils.export_array_contours(
+        grid, os.path.join(shp_dir,"WT_contours_"+str(year)+".shp"), wt, levels=range(int(np.min(wt)),int(np.max(wt)))
+    )
     t0 = datetime.datetime.now()
     SC_Input=subcalc_2021_npy(SC_Input['fom'],
                               SC_Input['fomund'],
@@ -716,6 +722,8 @@ for year in range(Start_Year,End_Year+1):
     drns['h_PT']=heads[0][drns['i'],drns['j']]
     drns['h_TM']=heads[1][drns['i'],drns['j']]
     drns['h_SP']=heads[2][drns['i'],drns['j']]
+
+
     
     #Let's calculate gradients
     #If water table in peat
@@ -738,6 +746,9 @@ for year in range(Start_Year,End_Year+1):
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_Pt_ft_" + str(year) + ".tif"), heads[0])
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_TM_ft_" + str(year) + ".tif"), heads[1])
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_SP_ft_" + str(year) + ".tif"), heads[2])
+
+    #Let's export head contours
+
     ti=datetime.datetime.now()
     drns_pd=pd.DataFrame(drns)
 
