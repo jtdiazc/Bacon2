@@ -586,6 +586,20 @@ flopy.export.shapefile_utils.recarray2shp(hobs_rec,
                                           shpname=os.path.join(shp_dir, "Hobs.shp"),
                                           epsg=grid.epsg)
 
+#Let's create active cells shapefile
+vertices = []
+for row, col in zip(Active_cells[0], Active_cells[1]):
+    vertices.append(grid.get_cell_vertices(row, col))
+
+AC_geom = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+AC_rec=np.rec.fromarrays([Active_cells[0], Active_cells[1]],names=['row', 'column'])
+
+flopy.export.shapefile_utils.recarray2shp(AC_rec,
+                                          geoms=AC_geom,
+                                          shpname=os.path.join(shp_dir, "Active_cells.shp"),
+                                          epsg=grid.epsg)
+
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
 
