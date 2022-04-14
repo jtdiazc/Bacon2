@@ -448,15 +448,16 @@ End_Year=2070
 
 #Let's load model
 ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
+ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 
 grid = ml.modelgrid
-grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+#grid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
 nrg=ml.nrow
 ncg=ml.ncol
 
 
 #Let's export grid shapefile
-#ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
+ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
 #Let's export hydraulic conductivities raster
 lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
@@ -575,6 +576,49 @@ flopy.export.shapefile_utils.recarray2shp(Levees_rec,
                                           shpname=os.path.join(shp_dir, "Levees.shp"),
                                           epsg=grid.epsg)
 
+#Let's export head observations shapefile
+hobs = flopy.modflow.ModflowHob.load('Bacon.hob', ml)
+
+hobs_row=[]
+hobs_col=[]
+hobs_nam=[]
+hobs_value=[]
+hobs_layer=[]
+for hob in range(len(hobs.obs_data)):
+    hobs_row.append(hobs.obs_data[hob].row)
+    hobs_col.append(hobs.obs_data[hob].column)
+    hobs_nam.append(hobs.obs_data[hob].time_series_data['obsname'][0])
+    hobs_value.append(hobs.obs_data[hob].time_series_data['hobs'][0])
+    hobs_layer.append(hobs.obs_data[hob].layer)
+
+vertices = []
+for row, col in zip(hobs_row, hobs_col):
+    vertices.append(grid.get_cell_vertices(row, col))
+
+HOBS = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value,
+                            hobs_layer],names=['row', 'column', 'obsname','hobs','layer'])
+
+flopy.export.shapefile_utils.recarray2shp(hobs_rec,
+                                          geoms=HOBS,
+                                          shpname=os.path.join(shp_dir, "Hobs.shp"),
+                                          epsg=grid.epsg)
+
+#Let's create active cells shapefile
+vertices = []
+for row, col in zip(Active_cells[0], Active_cells[1]):
+    vertices.append(grid.get_cell_vertices(row, col))
+
+AC_geom = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+AC_rec=np.rec.fromarrays([Active_cells[0], Active_cells[1]],names=['row', 'column'])
+
+flopy.export.shapefile_utils.recarray2shp(AC_rec,
+                                          geoms=AC_geom,
+                                          shpname=os.path.join(shp_dir, "Active_cells.shp"),
+                                          epsg=grid.epsg)
+
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
 
@@ -639,6 +683,12 @@ for year in range(Start_Year,End_Year+1):
 
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
+
+    #Let's export water table contours
+    wt[wt == np.unique(wt)[-1]] = 3.83
+    flopy.export.utils.export_array_contours(
+        grid, os.path.join(shp_dir,"WT_contours_"+str(year)+".shp"), wt, levels=range(int(np.min(wt)),int(np.max(wt)))
+    )
     t0 = datetime.datetime.now()
     SC_Input=subcalc_2021_npy(SC_Input['fom'],
                               SC_Input['fomund'],
@@ -705,6 +755,8 @@ for year in range(Start_Year,End_Year+1):
     drns['h_PT']=heads[0][drns['i'],drns['j']]
     drns['h_TM']=heads[1][drns['i'],drns['j']]
     drns['h_SP']=heads[2][drns['i'],drns['j']]
+
+
     
     #Let's calculate gradients
     #If water table in peat
@@ -727,6 +779,9 @@ for year in range(Start_Year,End_Year+1):
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_Pt_ft_" + str(year) + ".tif"), heads[0])
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_TM_ft_" + str(year) + ".tif"), heads[1])
     flopy.export.utils.export_array(grid, os.path.join(ras_dir, "H_SP_ft_" + str(year) + ".tif"), heads[2])
+
+    #Let's export head contours
+
     ti=datetime.datetime.now()
     drns_pd=pd.DataFrame(drns)
 
