@@ -458,6 +458,7 @@ grid = ml.modelgrid
 nrg=ml.nrow
 ncg=ml.ncol
 
+
 #Let's export grid shapefile
 ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
@@ -466,8 +467,6 @@ lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
 flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
 
 #Let's plot cross section
-
-
 fig = plt.figure(figsize=(18, 5))
 ax = fig.add_subplot(1, 1, 1)
 line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
@@ -490,6 +489,26 @@ bas = flopy.modflow.ModflowBas.load('MF_inputs/Bacon.bas', ml)
 
 ibound=np.array(bas.ibound[0][:])
 Active_cells=np.where(ibound!=0)
+
+#Let's calculate average thickness of layers
+avg_thck=[]
+for layer in range(ml.dis.nlay):
+    avg_thck.append(np.mean(grid.thick[layer][Active_cells]))
+    #Let's export rasters with layer thickness
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "Thickness_Layer"+str(layer)+".tif"), grid.thick[layer][:])
+
+#Let's calculate average ET
+evt=np.unique(ml.evt.evtr[0][:])
+
+#Let's convert to m/d
+evt=evt/3.28084
+
+
+#Let's calculate average recharge
+rch=np.unique(ml.rch.rech[0][:])
+
+#Let's convert to m/d
+rch=rch/3.28084
 
 #Let's get mask of levees
 levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
