@@ -434,6 +434,9 @@ shp_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Final"
 #Rasters
 ras_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster\Final"
 
+#CSVs
+csv_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\CSV"
+
 ###Number of processors
 n_cpu=cpu_count()
 
@@ -467,15 +470,15 @@ flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.
 
 fig = plt.figure(figsize=(18, 5))
 ax = fig.add_subplot(1, 1, 1)
-line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\CrossSection\X_Sec2.shp")
+line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
 xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
-
-patches = xsect.plot_ibound()
+#csa = xsect.plot_array(a,cmap=cmap)
+patches = xsect.plot_ibound(color_ch="blue")
 patches = xsect.plot_bc("DRN", color="pink")
 #patches = xsect.plot_bc("CHD", color="red")
 linecollection = xsect.plot_grid()
 #cb = plt.colorbar(csa, shrink=0.75)
-plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Report\Longer_Version\CrossSection\XSec.svg")
+plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_02\Figures\CrossSection.svg")
 
 
 subsidence=np.zeros(shape=(nrg,ncg))
@@ -614,6 +617,10 @@ SC_Input={'fom':np.load('fom_0.npy'),
           'bd':np.load('bd_0.npy'),
           'bdund':np.load('bdund_0.npy'),
           'massmin':np.load('massmin_0.npy')}
+
+#Let's export organic matter content raster
+flopy.export.utils.export_array(grid, os.path.join(ras_dir, "fom.tif"), SC_Input['fom'])
+
 
 #2. Import elevations
 
@@ -778,8 +785,8 @@ for year in range(Start_Year,End_Year+1):
 
     drns_pd["Year"]=year
     toedrains_dum["Year"]=year
-    drns_pd.to_csv(os.path.join(np_dir,"DRNS"+str(year)+".csv"),index=False)
-    toedrains_dum.to_csv(os.path.join(np_dir,"TOEDRNS"+str(year)+".csv"),index=False)
+    drns_pd.to_csv(os.path.join(csv_dir,"BAU_DRNS"+str(year)+".csv"),index=False)
+    toedrains_dum.to_csv(os.path.join(csv_dir,"BAU_TOEDRNS"+str(year)+".csv"),index=False)
     #drns.tofile(os.path.join(np_dir,"DRNS"+str(year)+".csv"),sep=",")
 
     #Let's export top elevation
