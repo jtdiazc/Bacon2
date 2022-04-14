@@ -82,13 +82,16 @@ toegrads_WLR_2070=filter(:Year=>cond,toegrads_WLR)
 toegrads_WLR_2070[!,:Scenario].="WLR"
 append!(toegrads_2070,toegrads_WLR_2070)
 
-Density=plot(toegrads_2070, x="Grad", color="Scenario", Geom.density,
+Density=plot(toegrads_2070, x="Grad", color="Scenario", xintercept=[1.0], Geom.density, 
+Geom.vline(color="red",style=[:dash]),
 Guide.ylabel("Density"),
 Guide.xlabel("Gradient"),
-Guide.title("Hydraulic Exit Gradients Density for 2070"),
 style(major_label_font_size=16pt,minor_label_font_size=14pt,
-line_width=2pt,key_title_font_size=16pt,key_label_font_size=14pt))
-draw(PNG("Density_2070.png", 10inch, 5.625inch), Density)
+line_width=2pt,key_title_font_size=16pt,key_label_font_size=14pt),
+)
+
+draw(PNG(raw"\\hydro-nas\Team\Projects\5630_DSC\Report\Shorter_Version\Densities2070.png", 
+10inch, 5inch), Density)
 
 f = Figure()
 Axis(f[1, 1], xlabel = "Hydraulic Exit Gradients", ylabel = "Cumulative Frequency",
@@ -102,3 +105,22 @@ Legend(f[1, 2],
 
 f
 
+#Let's plot SLR timeseries
+SLR=CSV.File(raw"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\Final\SLR.csv")|> DataFrame
+
+SLR=SLR[:,[:"Year",:"2_ft"]]
+
+#Let's subset by years less than or equal to 2070
+cond(Year::Int64) = Year <= 2070
+SLR=filter(:Year=>cond,SLR)
+
+cond(Year::Int64) = Year >= 2020
+SLR=filter(:Year=>cond,SLR)
+
+p=plot(SLR,x=:"Year",y=:"2_ft", Geom.line,
+color=[colorant"plum2"],
+Guide.ylabel("Tidal Stage (ft NAVD88)"),
+style(major_label_font_size=16pt,minor_label_font_size=14pt,
+line_width=2pt,key_title_font_size=16pt,key_label_font_size=14pt))
+
+draw(PNG(raw"\\hydro-nas\Team\Projects\5630_DSC\Report\Shorter_Version\TidalStage.png", 5inch, 5inch), p)
