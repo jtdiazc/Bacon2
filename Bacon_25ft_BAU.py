@@ -366,6 +366,7 @@ def subcalc_2021_npy(fom,
         fomund[ind_dum]=fomund2
 #            bdund = bdund2
         bdund[ind_dum]= bdund2
+
         
     else:
         peatleft = simdpth
@@ -377,7 +378,7 @@ def subcalc_2021_npy(fom,
     massom = massomlft + (fomund * bdund * volloss)
     massmin = massmin + ((1 - fomund) * bdund * volloss)
     
-    fom = massom / (massom + massmin)
+    fom = np.maximum(0,massom / (massom + massmin))
     
 #    if simdpth <= peatleft: 
 #        bd = (massom + massmin) / simdpth
@@ -459,25 +460,25 @@ nrg=ml.nrow
 ncg=ml.ncol
 
 
-#Let's export grid shapefile
-ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
+##Let's export grid shapefile
+#ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
-#Let's export hydraulic conductivities raster
-lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
-flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
+##Let's export hydraulic conductivities raster
+#lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
+#flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
 
-#Let's plot cross section
-fig = plt.figure(figsize=(18, 5))
-ax = fig.add_subplot(1, 1, 1)
-line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
-xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
+##Let's plot cross section
+#fig = plt.figure(figsize=(18, 5))
+#ax = fig.add_subplot(1, 1, 1)
+#line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
+#xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
 #csa = xsect.plot_array(a,cmap=cmap)
-patches = xsect.plot_ibound(color_ch="blue")
-patches = xsect.plot_bc("DRN", color="pink")
+#patches = xsect.plot_ibound(color_ch="blue")
+#patches = xsect.plot_bc("DRN", color="pink")
 #patches = xsect.plot_bc("CHD", color="red")
-linecollection = xsect.plot_grid()
-#cb = plt.colorbar(csa, shrink=0.75)
-plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_02\Figures\CrossSection.svg")
+#linecollection = xsect.plot_grid()
+##cb = plt.colorbar(csa, shrink=0.75)
+#plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_02\Figures\CrossSection.svg")
 
 
 subsidence=np.zeros(shape=(nrg,ncg))
@@ -489,6 +490,7 @@ bas = flopy.modflow.ModflowBas.load('MF_inputs/Bacon.bas', ml)
 
 ibound=np.array(bas.ibound[0][:])
 Active_cells=np.where(ibound!=0)
+Inactive_cells=np.where(ibound==0)
 
 #Let's calculate average thickness of layers
 avg_thck=[]
@@ -564,63 +566,63 @@ for row, col in zip(CH_df["row"], CH_df["col"]):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
-#Let's export shapefile of levees
-Levees_df = pd.DataFrame({"row":levees[0],
-                   "col":levees[1]})
-Levees_rec = Levees_df.to_records(index=False)
+##Let's export shapefile of levees
+#Levees_df = pd.DataFrame({"row":levees[0],
+#                   "col":levees[1]})
+#Levees_rec = Levees_df.to_records(index=False)
 
-vertices = []
-for row, col in zip(Levees_rec["row"], Levees_rec["col"]):
-    vertices.append(grid.get_cell_vertices(row, col))
-Levees_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+#vertices = []
+#for row, col in zip(Levees_rec["row"], Levees_rec["col"]):
+#    vertices.append(grid.get_cell_vertices(row, col))
+#Levees_CH = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
-flopy.export.shapefile_utils.recarray2shp(Levees_rec,
-                                          geoms=Levees_CH,
-                                          shpname=os.path.join(shp_dir, "Levees.shp"),
-                                          epsg=grid.epsg)
+#flopy.export.shapefile_utils.recarray2shp(Levees_rec,
+#                                          geoms=Levees_CH,
+#                                          shpname=os.path.join(shp_dir, "Levees.shp"),
+#                                          epsg=grid.epsg)
 
-#Let's export head observations shapefile
-hobs = flopy.modflow.ModflowHob.load('Bacon.hob', ml)
+##Let's export head observations shapefile
+#hobs = flopy.modflow.ModflowHob.load('Bacon.hob', ml)
 
-hobs_row=[]
-hobs_col=[]
-hobs_nam=[]
-hobs_value=[]
-hobs_layer=[]
-for hob in range(len(hobs.obs_data)):
-    hobs_row.append(hobs.obs_data[hob].row)
-    hobs_col.append(hobs.obs_data[hob].column)
-    hobs_nam.append(hobs.obs_data[hob].time_series_data['obsname'][0])
-    hobs_value.append(hobs.obs_data[hob].time_series_data['hobs'][0])
-    hobs_layer.append(hobs.obs_data[hob].layer)
+#hobs_row=[]
+#hobs_col=[]
+#hobs_nam=[]
+#hobs_value=[]
+#hobs_layer=[]
+#for hob in range(len(hobs.obs_data)):
+#    hobs_row.append(hobs.obs_data[hob].row)
+#    hobs_col.append(hobs.obs_data[hob].column)
+#    hobs_nam.append(hobs.obs_data[hob].time_series_data['obsname'][0])
+#    hobs_value.append(hobs.obs_data[hob].time_series_data['hobs'][0])
+#    hobs_layer.append(hobs.obs_data[hob].layer)
 
-vertices = []
-for row, col in zip(hobs_row, hobs_col):
-    vertices.append(grid.get_cell_vertices(row, col))
+#vertices = []
+#for row, col in zip(hobs_row, hobs_col):
+#    vertices.append(grid.get_cell_vertices(row, col))
 
-HOBS = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+#HOBS = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
-hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value,
-                            hobs_layer],names=['row', 'column', 'obsname','hobs','layer'])
+#hobs_rec=np.rec.fromarrays([hobs_row, hobs_col, hobs_nam,hobs_value,
+#                            hobs_layer],names=['row', 'column', 'obsname','hobs','layer'])
 
-flopy.export.shapefile_utils.recarray2shp(hobs_rec,
-                                          geoms=HOBS,
-                                          shpname=os.path.join(shp_dir, "Hobs.shp"),
-                                          epsg=grid.epsg)
+#flopy.export.shapefile_utils.recarray2shp(hobs_rec,
+#                                          geoms=HOBS,
+#                                          shpname=os.path.join(shp_dir, "Hobs.shp"),
+#                                          epsg=grid.epsg)
 
-#Let's create active cells shapefile
-vertices = []
-for row, col in zip(Active_cells[0], Active_cells[1]):
-    vertices.append(grid.get_cell_vertices(row, col))
+##Let's create active cells shapefile
+#vertices = []
+#for row, col in zip(Active_cells[0], Active_cells[1]):
+#    vertices.append(grid.get_cell_vertices(row, col))
 
-AC_geom = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+#AC_geom = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
-AC_rec=np.rec.fromarrays([Active_cells[0], Active_cells[1]],names=['row', 'column'])
+#AC_rec=np.rec.fromarrays([Active_cells[0], Active_cells[1]],names=['row', 'column'])
 
-flopy.export.shapefile_utils.recarray2shp(AC_rec,
-                                          geoms=AC_geom,
-                                          shpname=os.path.join(shp_dir, "Active_cells.shp"),
-                                          epsg=grid.epsg)
+#flopy.export.shapefile_utils.recarray2shp(AC_rec,
+#                                          geoms=AC_geom,
+#                                          shpname=os.path.join(shp_dir, "Active_cells.shp"),
+#                                          epsg=grid.epsg)
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv",index_col=0)
@@ -637,8 +639,12 @@ SC_Input={'fom':np.load('fom_0.npy'),
           'bdund':np.load('bdund_0.npy'),
           'massmin':np.load('massmin_0.npy')}
 
+#Let's set nas to 0
+SC_Input['fom'][np.isnan(SC_Input['fom'])]=0
+
 #Let's export organic matter content raster
 flopy.export.utils.export_array(grid, os.path.join(ras_dir, "fom.tif"), SC_Input['fom'])
+flopy.export.utils.export_array(grid, os.path.join(ras_dir, "fomund.tif"), SC_Input['fomund'])
 
 
 #2. Import elevations
@@ -656,11 +662,14 @@ for year in range(Start_Year,End_Year+1):
         ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
         ml.write_input()
         subprocess.check_output(["mf2005", "Bacon_fix.nam"])
-        
+        # Peat thickness
+        PT_thck = ml.dis.thickness[0]
+        PT_thck[Inactive_cells] = 0
+        PT_thck[levees] = 0
+
     #3.2 Let's run SUBCALC
-    
-    #Peat thickness
-    PT_thck=ml.dis.thickness[0]
+
+
     
     #Depth to groundwater
     h = flopy.utils.HeadFile("Bacon.hds", model=ml)
@@ -670,37 +679,83 @@ for year in range(Start_Year,End_Year+1):
     #levels = np.arange(int(np.min(heads[2]))+1, int(np.sort(np.unique(heads[0]))[-2]), 2)
     #levels = np.arange(-20,0, 5)
 
-    #Create cross section
-    levels =[-24,-22,-20,-18,-16,-14,-12,-10,-8,-6,-4,-2,0,2,4]
-    fig = plt.figure(figsize=(18, 5))
-    ax = fig.add_subplot(1, 1, 1)
-    line = flopy.plot.plotutil.shapefile_get_vertices(
-        r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\CrossSection\X_Sec2.shp")
-    xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
+    ##Create cross section
+    #levels =[-24,-22,-20,-18,-16,-14,-12,-10,-8,-6,-4,-2,0,2,4]
+    #fig = plt.figure(figsize=(18, 5))
+    #ax = fig.add_subplot(1, 1, 1)
+    #line = flopy.plot.plotutil.shapefile_get_vertices(
+    #    r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\GW Model\25ft\CrossSection\X_Sec2.shp")
+    #xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
 
-    patches = xsect.plot_ibound()
-    patches = xsect.plot_bc("DRN", color="pink")
-    # patches = xsect.plot_bc("CHD", color="red")
-    linecollection = xsect.plot_grid()
-    contour_set = xsect.contour_array(
-        heads, masked_values=[999.0], head=heads, levels=levels, colors="k"
-    )
-    plt.clabel(contour_set, fmt="%.1f", colors="k", fontsize=11)
-    plt.savefig(os.path.join(shp_dir,"XSec_"+str(year)+".svg"))
+    #patches = xsect.plot_ibound()
+    #patches = xsect.plot_bc("DRN", color="pink")
+    ## patches = xsect.plot_bc("CHD", color="red")
+    #linecollection = xsect.plot_grid()
+    #contour_set = xsect.contour_array(
+    #    heads, masked_values=[999.0], head=heads, levels=levels, colors="k"
+    #)
+    #plt.clabel(contour_set, fmt="%.1f", colors="k", fontsize=11)
+    #plt.savefig(os.path.join(shp_dir,"XSec_"+str(year)+".svg"))
 
     wt = flopy.utils.postprocessing.get_water_table(heads=heads, nodata=np.min(heads[0]))
     DTW=np.maximum(0,(ml.dis.top[:]-wt))
 
-    #Let's export water table contours
-    wt[wt == np.unique(wt)[-1]] = 3.83
-    flopy.export.utils.export_array_contours(
-        grid, os.path.join(shp_dir,"WT_contours_"+str(year)+".shp"), wt, levels=range(int(np.min(wt)),int(np.max(wt)))
-    )
+    ##Let's export water table contours
+    #wt[wt == np.unique(wt)[-1]] = 3.83
+    #flopy.export.utils.export_array_contours(
+    #    grid, os.path.join(shp_dir,"WT_contours_"+str(year)+".shp"), wt, levels=range(int(np.min(wt)),int(np.max(wt)))
+    #)
+
     t0 = datetime.datetime.now()
+
+    dtwm=DTW/3.28084
+
+    peatdepth=PT_thck/3.28084*100
+
+#    dtwm=np.minimum(dtwm,peatdepth/100)
+
+#    peatdepth=np.minimum(peatdepth,dtwm*100)
+
+    # Let's export organic matter content raster
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "fom_"+str(year)+".tif"), SC_Input['fom'])
+
+    # Let's export DTW raster
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "DTW_m_" + str(year) + ".tif"), dtwm)
+
+    # Let's export Peat thickness cm
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "PT_thck_cm_" + str(year) + ".tif"), peatdepth)
+
+    #flopy.export.utils.export_array(grid, os.path.join(ras_dir, "PT_thck_ft_" + str(year) + ".tif"), ml.dis.thickness[0])
+
+
+
+    # Let's export st
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "st_" + str(year) + ".tif"), SC_Input['st'])
+
+    # Let's export km
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "km_" + str(year) + ".tif"), SC_Input['km'])
+
+    # Let's export firstkm
+    #flopy.export.utils.export_array(grid, os.path.join(ras_dir, "firstkm_" + str(year) + ".tif"), SC_Input['firstkm'])
+
+    ## Let's export vmax
+    ##flopy.export.utils.export_array(grid, os.path.join(ras_dir, "vmax_" + str(year) + ".tif"), SC_Input['vmax'])
+
+    # Let's export bd
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "bd_" + str(year) + ".tif"), SC_Input['bd'])
+
+    # Let's export bdund
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "bdund_" + str(year) + ".tif"), SC_Input['bdund'])
+
+    # Let's export massmin
+    flopy.export.utils.export_array(grid, os.path.join(ras_dir, "massmin_" + str(year) + ".tif"), SC_Input['massmin'])
+
+
+
     SC_Input=subcalc_2021_npy(SC_Input['fom'],
                               SC_Input['fomund'],
-                              DTW/3.28084,
-                              PT_thck/3.28084*100,
+                              dtwm,
+                              peatdepth,
                               year,
                               st=SC_Input['st'],
                               km=SC_Input['km'],
@@ -718,7 +773,9 @@ for year in range(Start_Year,End_Year+1):
     subs[levees]=0
     #where subsidence is not na, we update top elevation by subsidence
     ml.dis.top[~np.isnan(subs)]=np.maximum(ml.dis.top[~np.isnan(subs)]-subs[~np.isnan(subs)],ml.dis.botm[0][~np.isnan(subs)])
-    
+    PT_thck=np.maximum(PT_thck-subs,0)
+
+
     #average subsidence
     subs_avg=np.average(subs[subs>0])
     avg_sub_df=avg_sub_df.append({"Year":year,'Sub_r_ft_yr':subs_avg},ignore_index = True)
