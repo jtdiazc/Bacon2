@@ -438,8 +438,7 @@ ras_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster\Final"
 #CSVs
 csv_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\CSV"
 
-###Number of processors
-n_cpu=cpu_count()
+
 
 ##Sea Level Rise timeseries
 SLR=pd.read_csv("SLR.csv",index_col=0)
@@ -464,21 +463,24 @@ ncg=ml.ncol
 #ml.dis.export(os.path.join(shp_dir,"Grid.shp"))
 
 ##Let's export hydraulic conductivities raster
-#lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
-#flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
+lpf = flopy.modflow.ModflowLpf.load('MF_inputs/Bacon.lpf', ml)
+flopy.export.utils.export_array(grid, os.path.join(ras_dir, "HK_Lay1.tif"), lpf.hk[0][:])
+
+#Let's export recharge raster
+flopy.export.utils.export_array(grid, os.path.join(ras_dir, "RCH.tif"), ml.rch.rech[0][:])
 
 ##Let's plot cross section
-#fig = plt.figure(figsize=(18, 5))
-#ax = fig.add_subplot(1, 1, 1)
-#line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
-#xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
-#csa = xsect.plot_array(a,cmap=cmap)
-#patches = xsect.plot_ibound(color_ch="blue")
-#patches = xsect.plot_bc("DRN", color="pink")
-#patches = xsect.plot_bc("CHD", color="red")
-#linecollection = xsect.plot_grid()
-##cb = plt.colorbar(csa, shrink=0.75)
-#plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_02\Figures\CrossSection.svg")
+fig = plt.figure(figsize=(18, 5))
+ax = fig.add_subplot(1, 1, 1)
+line = flopy.plot.plotutil.shapefile_get_vertices(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\Paper\GW model appendix\CrossSection.shp")
+xsect = flopy.plot.PlotCrossSection(model=ml, line={"line": line[0]})
+csa = xsect.plot_array(a,cmap=cmap)
+patches = xsect.plot_ibound(color_ch="blue")
+patches = xsect.plot_bc("DRN", color="pink")
+patches = xsect.plot_bc("CHD", color="red")
+linecollection = xsect.plot_grid()
+#cb = plt.colorbar(csa, shrink=0.75)
+plt.savefig(r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_02\Figures\CrossSection.svg")
 
 
 subsidence=np.zeros(shape=(nrg,ncg))
