@@ -137,3 +137,11 @@ for year in range(Start_Year,End_Year+1):
         PT_thck = ml.dis.gettop()[0]-ml.dis.getbotm()[0]
         PT_thck[Inactive_cells] = 0
         PT_thck[levees] = 0
+
+    #Depth to groundwater
+    h = flopy.utils.HeadFile("Bacon.hds", model=ml)
+    heads=h.get_data()
+
+    ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+
+    wt=flopy.utils.postprocessing.get_water_table(heads,masked_values=[999]).data
