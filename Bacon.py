@@ -34,6 +34,9 @@ mf_out_path=r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\202211
 #MODFLOW executable path
 mf_exe_path=r"C:\wrdapp\MF2005.1_12\bin\mf2005.exe"
 
+#Path to RPF tables
+RPF_path=r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\20221111\Output\RPF\BAU"
+
 ##Sea Level Rise timeseries
 SLR=pd.read_csv("SLR.csv",index_col=0)
 
@@ -108,7 +111,19 @@ CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-
 pyhf.flopyf.df_to_shp(grid,CH_df,shp_dir,"CH.shp")
 
 #SLR time series
-SLR=pd.read_csv("SLR.csv",index_col=0)
+SLR=pd.read_csv("SLR.csv")
+
+#Let's calculate rates
+for scenario in SLR.columns[SLR.columns!="Year"].values:
+    #Let's add new column
+    SLR[scenario+"_rate"]=0
+    SLR.loc[SLR.Year == SLR.Year.values[0], scenario + "_rate"]=0
+    for year in SLR.Year.values[1:]:
+        SLR.loc[SLR.Year == year, scenario + "_rate"]=SLR.loc[SLR.Year == year, scenario].values[0]-SLR.loc[SLR.Year == year-1, scenario].values[0]
+
+
+
+
 
 #SUBCALC input
 SC_Input={'fom':np.load('fom_0.npy'),
@@ -158,7 +173,7 @@ ACNLNT_df=ACNLNT_df[ACNLNT_df._merge=="left_only"].reset_index()
 pyhf.flopyf.df_to_shp(grid,ACNLNT_df,shp_dir,"Active_Cells_no_levees_no_toedrains.shp")
 
 #Import indexes and elevations of transects
-pd.read_csv("Transects.csv",index_col=0)
+Transects=pd.read_csv("Transects.csv")
 
 ##BAU
 
@@ -178,6 +193,8 @@ for year in range(Start_Year,End_Year+1):
         PT_thck = ml.dis.gettop()[0]-ml.dis.getbotm()[0]
         PT_thck[Inactive_cells] = 0
         PT_thck[levees] = 0
+
+
 
     #Depth to groundwater
     h = flopy.utils.HeadFile("Bacon.hds", model=ml)
@@ -254,8 +271,14 @@ for year in range(Start_Year,End_Year+1):
     # LEt's update drains
     ml.drn.stress_period_data[0][['k', 'elev']] = drns[['k', 'elev']]
 
+    # Let's update constant heads
 
-    ml.change_model_ws(new_pth=os.path.join(mf_out_path,str(year)))
+    for layer in range(3):
+        ml.bas6.strt[layer][CH] = SLR.loc[SLR.Year==year, "2_ft"].values[0]
+
+
+
+    ml.change_model_ws(new_pth=os.path.join(mf_out_path,"BAU",str(year)))
     ml.write_input()
 
     # Let's run MODFLOW
@@ -329,8 +352,39 @@ for year in range(Start_Year,End_Year+1):
     CH_df["CH"]=bas.strt[0][CH]
     CH_rec=CH_df.to_records(index=False)
 
+    # Let's sample peat top at levee toes
+    Transects['PT_top'] = ml.dis.top[Transects.row, Transects.col]
+    # Let's sample peat bottom at levee toes
+    Transects['PT_bot']=ml.dis.botm[0][Transects.row, Transects.col]
+
+
+    #Let's add SLR to Z
+    Transects["Z"] = Transects["Z"] + SLR.loc[SLR.Year == year, "2_ft_rate"].values[0]
+
+    #Let's calculate H
+    Transects["H_m"]=(Transects["Z"]-Transects['PT_top'])*0.3048
+
+    #Let's calculate T
+    Transects["T_m"]=(Transects["PT_top"]-Transects['PT_bot'])*0.3048
+
+    Transects.to_csv(os.path.join(mf_out_path,str(year),"RPF.csv"))
+
+    #Let's calculate RPF
+    Transects["RPF_Seep"]=np.max(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"]))))
+
+    Transects["RPF_Slope"]=np.max(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"])
+
+    Transects["RPF_Total"]=1-((1-Transects["RPF_Seep"])*(1-Transects["RPF_Slope"]))
+
+    Transects["Year"]=year
+
+    #Let's export to csv
+    Transects.to_csv(os.path.join(RPF_path,"Transects_"+str(year)+".csv"))
+
+
 
     print(year,ti-t0)
 
 #Let's export average subsidence dataframe
 avg_sub_df.to_csv(os.path.join(np_dir,"Avg_Sub.csv"),index=False)
+
