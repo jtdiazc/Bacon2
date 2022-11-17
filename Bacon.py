@@ -31,6 +31,9 @@ csv_dir=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\CSV"
 #MODFLOW output files
 mf_out_path=r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\20221111\MF_files"
 
+#MODFLOW executable path
+mf_exe_path=r"C:\wrdapp\MF2005.1_12\bin\mf2005.exe"
+
 ##Sea Level Rise timeseries
 SLR=pd.read_csv("SLR.csv",index_col=0)
 
@@ -131,6 +134,31 @@ Levees_df = pd.DataFrame({"row":levees[0],
                    "col":levees[1]})
 pyhf.flopyf.df_to_shp(grid,Levees_df,shp_dir,"Levees.shp")
 
+##Let's export shapefile of active cells
+Active_cells_df = pd.DataFrame({"row":Active_cells[0],
+                   "col":Active_cells[1]})
+pyhf.flopyf.df_to_shp(grid,Active_cells_df,shp_dir,"Active_Cells.shp")
+
+#Active cells but no levees
+#Let's join both dataframes
+AC_Lv_left=pd.merge(Active_cells_df,Levees_df,how="left",on=["row","col"],indicator=True)
+#Let's remove the ones that are found in both
+
+ACNL_df=AC_Lv_left[~(AC_Lv_left._merge=='both')].reset_index()
+pyhf.flopyf.df_to_shp(grid,ACNL_df,shp_dir,"Active_Cells_no_levees.shp")
+
+toedrains_df=toedrains_in.copy()
+toedrains_df.columns=["row","col"]
+
+ACNL_df=ACNL_df.drop(columns=['_merge'])
+
+#Let's also remove toedrains
+ACNLNT_df=pd.merge(ACNL_df,toedrains_in,how="left",left_on=["row","col"],right_on=["i","j"],indicator=True)
+ACNLNT_df=ACNLNT_df[ACNLNT_df._merge=="left_only"].reset_index()
+pyhf.flopyf.df_to_shp(grid,ACNLNT_df,shp_dir,"Active_Cells_no_levees_no_toedrains.shp")
+
+#Import indexes and elevations of transects
+pd.read_csv("Transects.csv",index_col=0)
 
 ##BAU
 
@@ -139,6 +167,8 @@ for year in range(Start_Year,End_Year+1):
     # 3.1 Initiate MODFLOW for year 1
     if year==Start_Year:
         ml = flopy.modflow.Modflow.load('MF_inputs/Bacon.nam')
+        ml.pcg.rclose = 864
+        ml.exe_name = 'mf2005.exe'
         ml.write_input()
         t0 = datetime.datetime.now()
         subprocess.check_output(["mf2005", "Bacon_fix.nam"])
@@ -152,12 +182,8 @@ for year in range(Start_Year,End_Year+1):
     #Depth to groundwater
     h = flopy.utils.HeadFile("Bacon.hds", model=ml)
     heads=h.get_data()
-    #ml.BAS6.strt[0][:]=heads[0]
-    #ml.BAS6.strt[1][:] = heads[1]
-    #ml.BAS6.strt[2][:] = heads[2]
 
-    #ml.pcg.damp=0.95
-    #ml.pcg.relax = 0.99
+
 
 
     ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
@@ -231,12 +257,13 @@ for year in range(Start_Year,End_Year+1):
 
     ml.change_model_ws(new_pth=os.path.join(mf_out_path,str(year)))
     ml.write_input()
-    ml.change_model_ws(new_pth=wdir)
-    ml.write_input()
-    print("Started MODFLOW at: "+str(datetime.datetime.now()))
-    t0 = datetime.datetime.now()
-    #Let's run MODFLOW
-    subprocess.check_output(["mf2005", "Bacon_fix.nam"])
+
+    # Let's run MODFLOW
+    ml.run_model()
+
+
+
+    #subprocess.check_output(["mf2005", "Bacon_fix.nam"])
 
     tf = datetime.datetime.now()
 
@@ -302,10 +329,7 @@ for year in range(Start_Year,End_Year+1):
     CH_df["CH"]=bas.strt[0][CH]
     CH_rec=CH_df.to_records(index=False)
 
-#    flopy.export.shapefile_utils.recarray2shp(CH_rec,
-#                                              geoms=polygons_CH,
-#                                              shpname=os.path.join(shp_dir,"CH_"+str(year)+".shp"),
-#                                              epsg=grid.epsg)
+
     print(year,ti-t0)
 
 #Let's export average subsidence dataframe
