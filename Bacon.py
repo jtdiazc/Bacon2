@@ -101,6 +101,8 @@ drns['top']=ml.dis.top[drns['i'],drns['j']]
 drns['PT_bot']=ml.dis.botm[0][drns['i'],drns['j']]
 drns['TM_bot']=ml.dis.botm[1][drns['i'],drns['j']]
 
+
+
 #Indices of constant head cells
 CH=np.where(ibound<0)
 
@@ -115,6 +117,8 @@ vertices = []
 for row, col in zip(toedrains_in['i'], toedrains_in['j']):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
+
+
 
 #Let's create constant head cells shapefile
 CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
@@ -174,6 +178,20 @@ pyhf.flopyf.df_to_shp(grid,ACNLNT_df,shp_dir,"Active_Cells_no_levees_no_toedrain
 
 #Import indexes and elevations of transects
 Transects=pd.read_csv("Transects.csv")
+
+#Let´s get mask of rice
+rice_df=pd.read_csv(os.path.join("Base","WLR","Rice.csv"))
+rice_mask=list(zip(rice_df.row,rice_df.column_lef))
+rice_mask=tuple(np.array(rice_mask).T)
+pyhf.flopyf.df_to_shp(grid,rice_df,shp_dir,"Rice.shp",col_key="column_lef")
+
+#Let´s get mask of wetlands
+wetland_df=pd.read_csv(os.path.join("Base","WLR","Wetlands.csv"))
+wetland_mask=list(zip(wetland_df.row,wetland_df.column_lef))
+wetland_mask=tuple(np.array(wetland_mask).T)
+pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp",col_key="column_lef")
+
+
 
 #Now, let's loop through sensitivity scenarios
 for sens in ["Base"]:
@@ -398,7 +416,7 @@ for sens in ["Base"]:
 
         Transects["Year"]=year
 
-        RPF_BAU_out =os.path.join(sens, "BAU", "Output", "RPF")
+        RPF_BAU_out =os.path.join(wdir,sens, "BAU", "Output", "RPF")
         if not os.path.exists(RPF_BAU_out):
             os.makedirs(RPF_BAU_out)
 
@@ -413,4 +431,184 @@ for sens in ["Base"]:
         os.makedirs(np_dir_BAU)
     #Let's export average subsidence dataframe
     avg_sub_df.to_csv(os.path.join(np_dir_BAU,"Avg_Sub.csv"),index=False)
+
+    ##Now, let's start with the WLR scenario
+    sim_years = End_Year-Start_Year+2
+    sedcalc_dum = pyhf.SEDCALC.sedcalc(h2oin=pd.read_csv(os.path.join("Base","WLR","h2oin.csv")),
+                                       minin=pd.read_csv(os.path.join("Base", "WLR", "minin.csv")),
+                                       orgin=pd.read_csv(os.path.join("Base", "WLR", "orgin.csv")),
+                                       porelim=pd.read_csv(os.path.join("Base", "WLR", "porelim.csv")),
+                                       endtim=sim_years)
+    relelv_dum = sedcalc_dum["relelv"].values
+    depth_dum = sedcalc_dum["depth"].values
+    porg_dum = sedcalc_dum["porg"].values
+    bulkd_dum = sedcalc_dum["bulkd"].values
+    acc_rate_dum = pd.DataFrame(columns=["Year", "Yearly Accretion (cm)", "Yearly Accretion (ft)"])
+    totC_dum = pd.DataFrame(columns=["Year", "Yearly Accretion (cm)", "gC/cm3", "gC/cm2"])
+    year = Start_Year
+
+    for i in range(sim_years - 1):
+        # Index for the backwards sum
+        i_bw = sim_years - i - 1
+
+        #        else:
+        acc_rate_dum_dum = pd.DataFrame({"Year": [year],
+                                         "Yearly Accretion (cm)": [(depth_dum[i_bw] - depth_dum[i_bw - 1])],
+                                         "Yearly Accretion (ft)": [
+                                             (depth_dum[i_bw] - depth_dum[i_bw - 1]) * 0.0328084]})
+        totC_dum_dum = pd.DataFrame({"Year": [year],
+                                     "Yearly Accretion (cm)": [(depth_dum[i_bw] - depth_dum[i_bw - 1])],
+                                     "gC/cm3": [porg_dum[i_bw] * bulkd_dum[i_bw] / 2],
+                                     "gC/cm2": [
+                                         (depth_dum[i_bw] - depth_dum[i_bw - 1]) * porg_dum[i_bw] * bulkd_dum[
+                                             i_bw] / 2]})
+
+        acc_rate_dum = acc_rate_dum.append(acc_rate_dum_dum, ignore_index=True)
+        totC_dum = totC_dum.append(totC_dum_dum, ignore_index=True)
+        year = year + 1
+
+    # Let's export the total carbon table as a csv file
+    totC_dum.to_csv(os.path.join(sens,"WLR","SEDCALC_totC_output.csv"), index=False)
+    # Let's export the SEDCALC accretion rates
+    acc_rate_dum.to_csv(os.path.join(sens,"SEDCALC_Accretion.csv"), index=False)
+    sedcalc_ts = acc_rate_dum
+
+    WLR_ras_dir=os.path.join(ras_dir,sens,"WLR")
+    if not os.path.exists(WLR_ras_dir):
+        os.makedirs(WLR_ras_dir)
+
+    # Directory for shapefiles
+    shp_WLR_path = os.path.join(shp_dir, sens, "WLR")
+    if not os.path.exists(shp_WLR_path):
+        os.makedirs(shp_WLR_path)
+
+    RPF_WLR_out = os.path.join(wdir, sens, "WLR", "Output", "RPF")
+    if not os.path.exists(RPF_WLR_out):
+        os.makedirs(RPF_WLR_out)
+
+    # 3. Let's loop through years now
+    for year in range(Start_Year, End_Year + 1):
+        # 3.1 Initiate MODFLOW for year 1
+        if year == Start_Year:
+            ml = flopy.modflow.Modflow.load('Base/WLR/MF_inputs/Bacon.nam')
+            ml.change_model_ws(new_pth=os.path.join(sens, "WLR", str(year)))
+            ml.pcg.rclose = 864
+            ml.exe_name = mf_exe_path
+            ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+            #Let's set rice and wetland to constant head
+            ml.bas6.ibound[0][rice_mask] = -1
+            ml.bas6.ibound[0][wetland_mask] = -1
+            # Let's add constant heads for rice
+            ml.bas6.strt[0][rice_mask] = ml.dis.top[rice_mask]
+
+
+            ml.write_input()
+            ml.run_model()
+
+        # Let´s add wetlands accretion to land surface
+        ml.dis.top[wetland_mask] = ml.dis.top[wetland_mask] + float(sedcalc_ts.loc[sedcalc_ts.Year == year,
+                                                                                   "Yearly Accretion (ft)"])
+        # Let´s add constant head cells for wetlands
+        ml.bas6.strt[0][wetland_mask] = ml.dis.top[wetland_mask]
+
+        # Peat thickness
+        PT_thck = ml.dis.gettop()[0]-ml.dis.getbotm()[0]
+
+        # Depth to groundwater
+        h = flopy.utils.HeadFile(os.path.join(ml.model_ws, "Bacon.hds"), model=ml)
+        heads = h.get_data()
+        wt = flopy.utils.postprocessing.get_water_table(heads, masked_values=[999]).data
+        DTW = np.maximum(0, (ml.dis.top[:] - wt))
+
+        # We sample elevations
+        drns['top'] = ml.dis.top[drns['i'], drns['j']]
+
+        # Let's update constant heads
+
+        for layer in range(3):
+            ml.bas6.strt[layer][CH] = SLR.loc[SLR.Year==year, "2_ft"]
+
+        ml.change_model_ws(new_pth=os.path.join(os.path.join(sens, "WLR",str(year))))
+        ml.write_input()
+        # Let's run MODFLOW
+        ml.run_model()
+
+        #Update heads
+        h = flopy.utils.HeadFile(os.path.join(ml.model_ws, "Bacon.hds"), model=ml)
+        heads=h.get_data()
+        drns['h_PT']=heads[0][drns['i'],drns['j']]
+        drns['h_TM']=heads[1][drns['i'],drns['j']]
+        drns['h_SP']=heads[2][drns['i'],drns['j']]
+
+        #Let's calculate gradients
+        #If water table in peat
+        cond=np.where(drns['h_PT']>ml.hdry)
+        #Gradient is the head difference between the peat and the sand
+        #divided by the remaining PT + TM
+        drns['Grad'][cond]=(-drns['h_PT'][cond]+drns['h_SP'][cond])/(drns['elev'][cond]-drns['TM_bot'][cond])
+        #If water table is in the tidal muc
+        cond=np.where(drns['h_PT']==ml.hdry)
+        #Gradient is the head difference between the tidal mud and the sand
+        #divided by the remaining TM
+        drns['Grad'][cond]=(-drns['h_TM'][cond]+drns['h_SP'][cond])/(drns['elev'][cond]-drns['TM_bot'][cond])
+
+
+
+        flopy.export.shapefile_utils.recarray2shp(drns,
+                                                  geoms=polygons,
+                                                  shpname=os.path.join(shp_WLR_path,"WLR_DRN_"+str(year)+".shp"),
+                                                  epsg=grid.epsg)
+        #Let's export heads
+        flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "H_Pt_ft_" + str(year) + ".tif"), heads[0])
+        flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "H_TM_ft_" + str(year) + ".tif"), heads[1])
+        flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "H_SP_ft_" + str(year) + ".tif"), heads[2])
+
+        drns_pd = pd.DataFrame(drns)
+
+        # Let's subset to toedrains
+        toedrains_dum = pd.merge(drns_pd, toedrains_in, how="right", on=["i", "j"])
+
+        # Let's convert to recarray
+        toedrains_dum_rec = toedrains_dum.to_records()
+
+        flopy.export.shapefile_utils.recarray2shp(toedrains_dum_rec,
+                                                  geoms=polygons_toedrn,
+                                                  shpname=os.path.join(shp_WLR_path,"WLR_TOEDRNS_"+str(year)+".shp"),
+                                                  epsg=grid.epsg)
+        drns_pd["Year"] = year
+        toedrains_dum["Year"] = year
+        drns_pd.to_csv(os.path.join(csv_dir, "WLR_DRNS" + str(year) + ".csv"), index=False)
+        toedrains_dum.to_csv(os.path.join(csv_dir,"WLR_TOEDRNS"+str(year)+".csv"),index=False)
+
+        #Let's export top elevation
+        flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "Top_ft_" + str(year) + ".tif"), ml.dis.top[:])
+
+        # Let's sample peat top at levee toes
+        Transects['PT_top'] = ml.dis.top[Transects.row, Transects.col]
+        # Let's sample peat bottom at levee toes
+        Transects['PT_bot']=ml.dis.botm[0][Transects.row, Transects.col]
+
+        #Let's add SLR to Z
+        Transects["Z"] = Transects["Z"] + SLR.loc[SLR.Year == year, "2_ft_rate"].values[0]
+
+        #Let's calculate H
+        Transects["H_m"]=(Transects["Z"]-Transects['PT_top'])*0.3048
+
+        #Let's calculate T
+        Transects["T_m"]=(Transects["PT_top"]-Transects['PT_bot'])*0.3048
+
+        #Let's calculate RPF
+        Transects["RPF_Seep"]=np.maximum(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"]))))
+
+        Transects["RPF_Slope"]=np.maximum(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"])
+
+        Transects["RPF_Total"]=1-((1-Transects["RPF_Seep"])*(1-Transects["RPF_Slope"]))
+
+        Transects["Year"]=year
+
+        #Let's export to csv
+        Transects.to_csv(os.path.join(RPF_WLR_out,"Transects_"+str(year)+".csv"))
+
+    # Let's create band plots
+    pyhf.utils.band_plot(Start_Year, End_Year, RPF_WLR_out)
 
