@@ -1,6 +1,6 @@
 import sys
 #path to the hydrofocus functions module
-sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes')
+#sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes')
 import pyhf
 #Path to flopy module
 sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes\flopy')
@@ -11,6 +11,7 @@ import numpy as np
 import rasterio
 import subprocess
 import datetime
+import geopandas as gpd
 
 #Version of simulation
 sim_vers="20221118"
@@ -411,9 +412,9 @@ for sens in ["Base"]:
 
 
         #Let's calculate RPF
-        Transects["RPF_Seep"]=np.maximum(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"]))))
+        Transects["RPF_Seep"]=np.minimum(np.maximum(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"])))),1)
 
-        Transects["RPF_Slope"]=np.maximum(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"])
+        Transects["RPF_Slope"]=np.minimum(np.maximum(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"]),1)
 
         Transects["RPF_Total"]=1-((1-Transects["RPF_Seep"])*(1-Transects["RPF_Slope"]))
 
@@ -615,4 +616,43 @@ for sens in ["Base"]:
 
     # Let's create band plots
     pyhf.utils.band_plot(Start_Year, End_Year, RPF_WLR_out)
+
+    #Let's export shapefile of cross sections for first and last time step
+    pyhf.utils.shp_df_join(RPF_BAU_out,["Transects_"+str(Start_Year)+".csv",
+                                        "Transects_" + str(End_Year) + ".csv"]
+                           ,os.path.join(shp_dir,"RPF","Transect_Cells_v3.shp"),
+                           os.path.join(shp_dir, "RPF"),
+                           sens + "_BAU_"
+                           )
+
+    pyhf.utils.shp_df_join(RPF_WLR_out,["Transects_"+str(Start_Year)+".csv",
+                                        "Transects_" + str(End_Year) + ".csv"]
+                           ,os.path.join(shp_dir,"RPF","Transect_Cells_v3.shp"),
+                           os.path.join(shp_dir, "RPF"),
+                           sens + "_WLR_"
+                           )
+
+#Let's post process gis files
+
+#Path of csv to join
+csv_path=r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\20221118\Base\BAU\Output\RPF"
+fname="Transects_2018.csv"
+
+#Path to cross section lines shapefile
+shp_path=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\RPF\Transect_Cells_v3.shp"
+
+shp=gpd.read_file(shp_path)
+
+
+df=pd.read_csv(os.path.join(csv_path,fname))
+
+shp=pd.merge(shp,df,how="left")
+
+out_dir=os.path.join(shp_dir,"RPF")
+
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+
+shp.to_file(os.path.join(out_dir,fname[:-3]+"shp"))
+
 
