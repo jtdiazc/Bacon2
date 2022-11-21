@@ -632,27 +632,5 @@ for sens in ["Base"]:
                            sens + "_WLR_"
                            )
 
-#Let's post process gis files
-
-#Path of csv to join
-csv_path=r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model\20221118\Base\BAU\Output\RPF"
-fname="Transects_2018.csv"
-
-#Path to cross section lines shapefile
-shp_path=r"\\hydro-nas\Team\Projects\5630_DSC\GIS\vector\RPF\Transect_Cells_v3.shp"
-
-shp=gpd.read_file(shp_path)
-
-
-df=pd.read_csv(os.path.join(csv_path,fname))
-
-shp=pd.merge(shp,df,how="left")
-
-out_dir=os.path.join(shp_dir,"RPF")
-
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
-
-shp.to_file(os.path.join(out_dir,fname[:-3]+"shp"))
 
 
