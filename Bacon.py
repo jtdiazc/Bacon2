@@ -185,11 +185,14 @@ rice_mask=list(zip(rice_df.row,rice_df.column_lef))
 rice_mask=tuple(np.array(rice_mask).T)
 pyhf.flopyf.df_to_shp(grid,rice_df,shp_dir,"Rice.shp",col_key="column_lef")
 
-#Let´s get mask of wetlands
-wetland_df=pd.read_csv(os.path.join("Base","WLR","Wetlands.csv"))
-wetland_mask=list(zip(wetland_df.row,wetland_df.column_lef))
+#Let´s get create mask of wetlands
+wetland_df=pd.merge(ACNL_df,rice_df,how="left",left_on=["row","col"],right_on=["row","column_lef"],indicator=True)
+wetland_df=wetland_df[wetland_df._merge=="left_only"].reset_index()
+pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp")
+
+wetland_mask=list(zip(wetland_df.row,wetland_df.col))
 wetland_mask=tuple(np.array(wetland_mask).T)
-pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp",col_key="column_lef")
+
 
 
 
@@ -506,8 +509,9 @@ for sens in ["Base"]:
             ml.run_model()
 
         # Let´s add wetlands accretion to land surface
-        ml.dis.top[wetland_mask] = ml.dis.top[wetland_mask] + float(sedcalc_ts.loc[sedcalc_ts.Year == year,
-                                                                                   "Yearly Accretion (ft)"])
+        ml.dis.top[wetland_mask] = np.minimum(ml.dis.top[wetland_mask] + float(sedcalc_ts.loc[sedcalc_ts.Year == year,
+                                                                                   "Yearly Accretion (ft)"]),
+                                          SLR.loc[SLR.Year==year, "2_ft"].values[0])
         # Let´s add constant head cells for wetlands
         ml.bas6.strt[0][wetland_mask] = ml.dis.top[wetland_mask]
 
