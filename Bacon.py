@@ -14,10 +14,10 @@ import datetime
 import geopandas as gpd
 
 #Version of simulation
-sim_vers="20221118"
+sim_vers="20221122"
 
 #We set directory
-wdir=os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\Bacon Island Model\Model",sim_vers)
+wdir=os.path.join(r"C:\Projects\5630",sim_vers)
 
 if not os.path.exists(wdir):
     os.makedirs(wdir)
@@ -194,24 +194,28 @@ pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp")
 wetland_mask=list(zip(wetland_df.row,wetland_df.col))
 wetland_mask=tuple(np.array(wetland_mask).T)
 
+# SUBCALC input
+SC_Input = {'fom': np.load(os.path.join("Base", 'fom_0.npy')),
+            'fomund': np.load(os.path.join("Base", 'fomund_0.npy')),
+            'st': np.load(os.path.join("Base", 'st_0.npy')),
+            'km': np.load(os.path.join("Base", 'km_0.npy')),
+            'firstkm': np.load(os.path.join("Base", 'firstkm_0.npy')),
+            'vmax': np.load(os.path.join("Base", 'vmax_0.npy')),
+            'bd': np.load(os.path.join("Base", 'bd_0.npy')),
+            'bdund': np.load(os.path.join("Base", 'bdund_0.npy')),
+            'massmin': np.load(os.path.join("Base", 'massmin_0.npy'))}
 
+# Let's set nas to 0
+SC_Input['fom'][np.isnan(SC_Input['fom'])] = 0
+
+#Uncertainty terms (cm/yr)
+uncert_SUBCALC={"LB":-0.1, "Base":0,"UB":0.1}
+uncert_SEDCALC={"LB":-1.4, "Base":0,"UB":1.4}
 
 
 #Now, let's loop through sensitivity scenarios
-for sens in ["Base"]:
-    #SUBCALC input
-    SC_Input={'fom':np.load(os.path.join(sens,'fom_0.npy')),
-              'fomund':np.load(os.path.join(sens,'fomund_0.npy')),
-              'st':np.load(os.path.join(sens,'st_0.npy')),
-              'km':np.load(os.path.join(sens,'km_0.npy')),
-              'firstkm':np.load(os.path.join(sens,'firstkm_0.npy')),
-              'vmax':np.load(os.path.join(sens,'vmax_0.npy')),
-              'bd':np.load(os.path.join(sens,'bd_0.npy')),
-              'bdund':np.load(os.path.join(sens,'bdund_0.npy')),
-              'massmin':np.load(os.path.join(sens,'massmin_0.npy'))}
+for sens in ["LB","Base","UB"]:
 
-    #Let's set nas to 0
-    SC_Input['fom'][np.isnan(SC_Input['fom'])]=0
 
     ##BAU
 
@@ -221,7 +225,7 @@ for sens in ["Base"]:
         os.makedirs(BAU_ras_dir)
 
     #3. Let's loop through years now
-    for year in range(Start_Year,End_Year+1):
+    for year in range(2058,End_Year+1):
         # 3.1 Initiate MODFLOW for year 1
         if year==Start_Year:
             ml = flopy.modflow.Modflow.load('Base/BAU/MF_inputs/Bacon.nam')
@@ -241,6 +245,10 @@ for sens in ["Base"]:
         #Depth to groundwater
         h = flopy.utils.HeadFile(os.path.join(ml.model_ws,"Bacon.hds"), model=ml)
         heads=h.get_data()
+
+        #Let's update starting heads
+        for layer in range(3):
+            ml.bas6.strt[layer] = heads[layer]
 
 
 
@@ -276,7 +284,8 @@ for sens in ["Base"]:
                                   bdund=SC_Input['bdund'],
                                   massmin=SC_Input['massmin']
                                   )
-
+        #Let's apply uncertainty
+        SC_Input['tdelev']=np.maximum(0,SC_Input['tdelev']+uncert_SUBCALC[sens])
         subs=SC_Input['tdelev']*3.28084/100
         #For levees, subsidence is zer0
         subs[levees]=0
@@ -381,8 +390,8 @@ for sens in ["Base"]:
 
         drns_pd["Year"]=year
         toedrains_dum["Year"]=year
-        drns_pd.to_csv(os.path.join(csv_dir,"BAU_DRNS"+str(year)+".csv"),index=False)
-        toedrains_dum.to_csv(os.path.join(csv_dir,"BAU_TOEDRNS"+str(year)+".csv"),index=False)
+        drns_pd.to_csv(os.path.join(csv_dir,sens+"_BAU_DRNS"+str(year)+".csv"),index=False)
+        toedrains_dum.to_csv(os.path.join(csv_dir,sens+"_BAU_TOEDRNS"+str(year)+".csv"),index=False)
 
 
         #Let's export top elevation
@@ -470,6 +479,9 @@ for sens in ["Base"]:
         acc_rate_dum = acc_rate_dum.append(acc_rate_dum_dum, ignore_index=True)
         totC_dum = totC_dum.append(totC_dum_dum, ignore_index=True)
         year = year + 1
+    #Let's add uncertainty
+    totC_dum["Yearly Accretion (cm)"]=np.maximum(0,totC_dum["Yearly Accretion (cm)"]+uncert_SEDCALC[sens])
+    acc_rate_dum["Yearly Accretion (cm)"]=np.maximum(0,acc_rate_dum["Yearly Accretion (cm)"]+uncert_SEDCALC[sens])
 
     # Let's export the total carbon table as a csv file
     totC_dum.to_csv(os.path.join(sens,"WLR","SEDCALC_totC_output.csv"), index=False)
