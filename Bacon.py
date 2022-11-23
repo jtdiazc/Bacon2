@@ -225,7 +225,7 @@ for sens in ["LB","Base","UB"]:
         os.makedirs(BAU_ras_dir)
 
     #3. Let's loop through years now
-    for year in range(2067,End_Year+1):
+    for year in range(Start_Year,End_Year+1):
         # 3.1 Initiate MODFLOW for year 1
         if year==Start_Year:
             ml = flopy.modflow.Modflow.load('Base/BAU/MF_inputs/Bacon.nam')
@@ -245,15 +245,6 @@ for sens in ["LB","Base","UB"]:
         #Depth to groundwater
         h = flopy.utils.HeadFile(os.path.join(ml.model_ws,"Bacon.hds"), model=ml)
         heads=h.get_data()
-
-        #Let's update starting heads
-        for layer in range(3):
-            ml.bas6.strt[layer] = heads[layer]
-
-
-
-
-
 
         wt=flopy.utils.postprocessing.get_water_table(heads,masked_values=[999]).data
 
@@ -324,7 +315,7 @@ for sens in ["LB","Base","UB"]:
         # Let's update constant heads
 
         for layer in range(3):
-            ml.bas6.strt[layer][CH] = SLR.loc[SLR.Year==year, "2_ft"].values[0]
+            ml.bas6.strt[layer] = SLR.loc[SLR.Year==year, "2_ft"].values[0]
         #Change model working space
         ml.change_model_ws(new_pth=os.path.join(os.path.join(sens, "BAU",str(year))))
         ml.write_input()
