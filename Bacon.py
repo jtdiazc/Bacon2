@@ -317,7 +317,7 @@ for sens in ["LB","Base","UB"]:
         for layer in range(3):
             ml.bas6.strt[layer] = SLR.loc[SLR.Year==year, "2_ft"].values[0]
         #Change model working space
-        ml.change_model_ws(new_pth=os.path.join(os.path.join(sens, "BAU",str(year))))
+        ml.change_model_ws(new_pth=os.path.join(sens, "BAU",str(year)))
         ml.write_input()
 
         # Let's run MODFLOW
