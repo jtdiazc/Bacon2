@@ -120,12 +120,12 @@ for row, col in zip(toedrains_in['i'], toedrains_in['j']):
 polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
 
+if False:
+    #Let's create constant head cells shapefile
+    CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
+                       "col":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[1]})
 
-#Let's create constant head cells shapefile
-CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
-                   "col":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[1]})
-
-pyhf.flopyf.df_to_shp(grid,CH_df,shp_dir,"CH.shp")
+    pyhf.flopyf.df_to_shp(grid,CH_df,shp_dir,"CH.shp")
 
 #SLR time series
 SLR=pd.read_csv("SLR.csv")
@@ -149,15 +149,17 @@ for scenario in SLR.columns[SLR.columns!="Year"].values:
 #Dataframe with average subsidence
 avg_sub_df=pd.DataFrame(columns = ['Year', 'Sub_r_ft_yr'])
 
+
 ##Let's export shapefile of levees
 Levees_df = pd.DataFrame({"row":levees[0],
-                   "col":levees[1]})
+                       "col":levees[1]})
 pyhf.flopyf.df_to_shp(grid,Levees_df,shp_dir,"Levees.shp")
 
-##Let's export shapefile of active cells
+    ##Let's export shapefile of active cells
 Active_cells_df = pd.DataFrame({"row":Active_cells[0],
-                   "col":Active_cells[1]})
-pyhf.flopyf.df_to_shp(grid,Active_cells_df,shp_dir,"Active_Cells.shp")
+                       "col":Active_cells[1]})
+if False:
+    pyhf.flopyf.df_to_shp(grid,Active_cells_df,shp_dir,"Active_Cells.shp")
 
 #Active cells but no levees
 #Let's join both dataframes
@@ -165,7 +167,8 @@ AC_Lv_left=pd.merge(Active_cells_df,Levees_df,how="left",on=["row","col"],indica
 #Let's remove the ones that are found in both
 
 ACNL_df=AC_Lv_left[~(AC_Lv_left._merge=='both')].reset_index()
-pyhf.flopyf.df_to_shp(grid,ACNL_df,shp_dir,"Active_Cells_no_levees.shp")
+if False:
+    pyhf.flopyf.df_to_shp(grid,ACNL_df,shp_dir,"Active_Cells_no_levees.shp")
 
 toedrains_df=toedrains_in.copy()
 toedrains_df.columns=["row","col"]
@@ -175,7 +178,8 @@ ACNL_df=ACNL_df.drop(columns=['_merge'])
 #Let's also remove toedrains
 ACNLNT_df=pd.merge(ACNL_df,toedrains_in,how="left",left_on=["row","col"],right_on=["i","j"],indicator=True)
 ACNLNT_df=ACNLNT_df[ACNLNT_df._merge=="left_only"].reset_index()
-pyhf.flopyf.df_to_shp(grid,ACNLNT_df,shp_dir,"Active_Cells_no_levees_no_toedrains.shp")
+if False:
+    pyhf.flopyf.df_to_shp(grid,ACNLNT_df,shp_dir,"Active_Cells_no_levees_no_toedrains.shp")
 
 #Import indexes and elevations of transects
 Transects=pd.read_csv("Transects.csv")
@@ -184,12 +188,14 @@ Transects=pd.read_csv("Transects.csv")
 rice_df=pd.read_csv(os.path.join("Base","WLR","Rice.csv"))
 rice_mask=list(zip(rice_df.row,rice_df.column_lef))
 rice_mask=tuple(np.array(rice_mask).T)
-pyhf.flopyf.df_to_shp(grid,rice_df,shp_dir,"Rice.shp",col_key="column_lef")
+if False:
+    pyhf.flopyf.df_to_shp(grid,rice_df,shp_dir,"Rice.shp",col_key="column_lef")
 
 #Let´s get create mask of wetlands
 wetland_df=pd.merge(ACNL_df,rice_df,how="left",left_on=["row","col"],right_on=["row","column_lef"],indicator=True)
 wetland_df=wetland_df[wetland_df._merge=="left_only"].reset_index()
-pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp")
+if False:
+    pyhf.flopyf.df_to_shp(grid,wetland_df,shp_dir,"Wetlands.shp")
 
 wetland_mask=list(zip(wetland_df.row,wetland_df.col))
 wetland_mask=tuple(np.array(wetland_mask).T)
@@ -212,6 +218,9 @@ SC_Input['fom'][np.isnan(SC_Input['fom'])] = 0
 uncert_SUBCALC={"LB":-0.1, "Base":0,"UB":0.1}
 uncert_SEDCALC={"LB":-1.4, "Base":0,"UB":1.4}
 
+if False:
+    ml.modelgrid.write_shapefile(os.path.join(shp_dir, "Grid.shp"))
+
 
 #Now, let's loop through sensitivity scenarios
 for sens in ["LB","Base","UB"]:
@@ -224,8 +233,13 @@ for sens in ["LB","Base","UB"]:
     if not os.path.exists(BAU_ras_dir):
         os.makedirs(BAU_ras_dir)
 
+    RPF_BAU_out =os.path.join(wdir,sens, "BAU", "Output", "RPF")
+    if not os.path.exists(RPF_BAU_out):
+        os.makedirs(RPF_BAU_out)
+
     #3. Let's loop through years now
     for year in range(Start_Year,End_Year+1):
+
         # 3.1 Initiate MODFLOW for year 1
         if year==Start_Year:
             ml = flopy.modflow.Modflow.load('Base/BAU/MF_inputs/Bacon.nam')
@@ -239,6 +253,8 @@ for sens in ["LB","Base","UB"]:
             PT_thck = ml.dis.gettop()[0]-ml.dis.getbotm()[0]
             PT_thck[Inactive_cells] = 0
             PT_thck[levees] = 0
+            #Let's calculate starting RPFs
+            pyhf.RPF.rpf(Transects,ml,year-1,SLR,RPF_BAU_out)
 
 
 
@@ -393,39 +409,7 @@ for sens in ["LB","Base","UB"]:
         CH_df["CH"]=bas.strt[0][CH]
         CH_rec=CH_df.to_records(index=False)
 
-        # Let's sample peat top at levee toes
-        Transects['PT_top'] = ml.dis.top[Transects.row, Transects.col]
-        # Let's sample peat bottom at levee toes
-        Transects['PT_bot']=ml.dis.botm[0][Transects.row, Transects.col]
-
-
-        #Let's add SLR to Z
-        Transects["Z"] = Transects["Z"] + SLR.loc[SLR.Year == year, "2_ft_rate"].values[0]
-
-        #Let's calculate H
-        Transects["H_m"]=(Transects["Z"]-Transects['PT_top'])*0.3048
-
-        #Let's calculate T
-        Transects["T_m"]=(Transects["PT_top"]-Transects['PT_bot'])*0.3048
-
-
-
-
-        #Let's calculate RPF
-        Transects["RPF_Seep"]=np.minimum(np.maximum(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"])))),1)
-
-        Transects["RPF_Slope"]=np.minimum(np.maximum(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"]),1)
-
-        Transects["RPF_Total"]=1-((1-Transects["RPF_Seep"])*(1-Transects["RPF_Slope"]))
-
-        Transects["Year"]=year
-
-        RPF_BAU_out =os.path.join(wdir,sens, "BAU", "Output", "RPF")
-        if not os.path.exists(RPF_BAU_out):
-            os.makedirs(RPF_BAU_out)
-
-        #Let's export to csv
-        Transects.to_csv(os.path.join(RPF_BAU_out,"Transects_"+str(year)+".csv"))
+        pyhf.RPF.rpf(Transects, ml, year, SLR, RPF_BAU_out)
 
     # Let's create band plots
     pyhf.utils.band_plot(Start_Year, End_Year, RPF_BAU_out)
@@ -511,6 +495,8 @@ for sens in ["LB","Base","UB"]:
 
             ml.write_input()
             ml.run_model()
+            pyhf.RPF.rpf(Transects, ml, year-1, SLR, RPF_WLR_out)
+
 
         # Let´s add wetlands accretion to land surface
         ml.dis.top[wetland_mask] = np.minimum(ml.dis.top[wetland_mask] + float(sedcalc_ts.loc[sedcalc_ts.Year == year,
@@ -591,34 +577,11 @@ for sens in ["LB","Base","UB"]:
         #Let's export top elevation
         flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "Top_ft_" + str(year) + ".tif"), ml.dis.top[:])
 
-        # Let's sample peat top at levee toes
-        Transects['PT_top'] = ml.dis.top[Transects.row, Transects.col]
-        # Let's sample peat bottom at levee toes
-        Transects['PT_bot']=ml.dis.botm[0][Transects.row, Transects.col]
-
-        #Let's add SLR to Z
-        Transects["Z"] = Transects["Z"] + SLR.loc[SLR.Year == year, "2_ft_rate"].values[0]
-
-        #Let's calculate H
-        Transects["H_m"]=(Transects["Z"]-Transects['PT_top'])*0.3048
-
-        #Let's calculate T
-        Transects["T_m"]=(Transects["PT_top"]-Transects['PT_bot'])*0.3048
-
-        #Let's calculate RPF
-        Transects["RPF_Seep"]=np.maximum(0,1.114/np.power((1+np.exp(1.945*(Transects["T_m"]-0.3602))),(1/(0.8919*Transects["H_m"]))))
-
-        Transects["RPF_Slope"]=np.maximum(0,-.13543+0.009152*np.log(Transects["T_m"])+0.04816*Transects["H_m"])
-
-        Transects["RPF_Total"]=1-((1-Transects["RPF_Seep"])*(1-Transects["RPF_Slope"]))
-
-        Transects["Year"]=year
-
-        #Let's export to csv
-        Transects.to_csv(os.path.join(RPF_WLR_out,"Transects_"+str(year)+".csv"))
+        pyhf.RPF.rpf(Transects, ml, year - 1, SLR, RPF_WLR_out)
 
     # Let's create band plots
     pyhf.utils.band_plot(Start_Year, End_Year, RPF_WLR_out)
+
 
     #Let's export shapefile of cross sections for first and last time step
     pyhf.utils.shp_df_join(RPF_BAU_out,["Transects_"+str(Start_Year)+".csv",
@@ -637,3 +600,64 @@ for sens in ["LB","Base","UB"]:
 
 
 
+###Let's plot an histogram of the peat bottom elevations for the Base scenario, BAU and 2018 to assess the baseline
+###RPF
+
+
+Base_2018_BAU_dir=os.path.join(wdir,"Base", "BAU", "Output", "RPF")
+RPF_2018_df=pd.read_csv(os.path.join(Base_2018_BAU_dir,"Transects_2018.csv"),index_col=0)
+out_path=r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_11\RPF"
+
+pyhf.utils.histogram(RPF_2018_df,
+                     "PT_bot",
+                     20,
+                     out_path,
+                     "BAU_2018_PT_bot_hist",
+                     "Peat Bottom (ft)",
+                     "Density")
+
+#Now, let's plot an histogram of the surface elevations at levee toes
+pyhf.utils.histogram(RPF_2018_df,
+                     'PT_top',
+                     20,
+                     out_path,
+                     "BAU_2018_PT_top_hist",
+                     "Peat Top (ft)",
+                     "Density")
+
+#Now, let's plot an histogram of levee crests
+pyhf.utils.histogram(RPF_2018_df,
+                     'Z',
+                     20,
+                     out_path,
+                     "BAU_2018_Levee_top_hist",
+                     "Levee Crest Elevation (ft)",
+                     "Density")
+
+#Now, let's plot a histogram of RPFseep
+pyhf.utils.histogram(RPF_2018_df,
+                     'RPF_Seep',
+                     20,
+                     out_path,
+                     "BAU_2018_RPF_Seep_hist",
+                     "RPF seepage",
+                     "Density")
+
+#Now, let's plot a histogram of RPFslope
+pyhf.utils.histogram(RPF_2018_df,
+                     'RPF_Slope',
+                     20,
+                     out_path,
+                     "BAU_2018_RPF_Slope_hist",
+                     "RPF slope",
+                     "Density")
+
+#Now, let's plot a histogram of total RPF
+
+pyhf.utils.histogram(RPF_2018_df,
+                     'RPF_Total',
+                     20,
+                     out_path,
+                     "BAU_2018_RPF_Total_hist",
+                     "RPF total",
+                     "Density")
