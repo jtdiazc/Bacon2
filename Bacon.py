@@ -3,7 +3,7 @@ import sys
 #sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes')
 import pyhf
 #Path to flopy module
-sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes\flopy')
+#sys.path.insert(0, r'\\hydro-nas\Team\Projects\5630_DSC\Codes\flopy')
 import flopy
 import os
 import pandas as pd
@@ -60,7 +60,13 @@ End_Year=2070
 
 #Let's load model
 ml = flopy.modflow.Modflow.load('Base/BAU/MF_inputs/Bacon.nam')
+
+
+
 ml.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+
+
+
 nrg=ml.nrow
 ncg=ml.ncol
 
@@ -69,6 +75,8 @@ ncg=ml.ncol
 bas=ml.bas6
 
 ibound=np.array(bas.ibound[0][:])
+
+
 
 Active_cells=np.where(ibound!=0)
 Inactive_cells=np.where(ibound==0)
@@ -83,6 +91,8 @@ levees=np.where(ml.lpf.hk[0][:]==min(np.unique(ml.lpf.hk[0][:])))
 #Let's get indexes of toedrains
 toedrains_in=pd.read_csv(r"ToeDrains_Index_Flopy.csv")
 toedrains_in=toedrains_in.drop(['k','elev', 'cond', 'iface', 'top', 'PT_bot', 'TM_bot','h_PT', 'h_TM', 'h_SP', 'Grad'], axis=1)
+
+
 
 #Let's convert to recarray
 #toedrains_in_rec=toedrains_in.to_records
@@ -119,24 +129,25 @@ for row, col in zip(toedrains_in['i'], toedrains_in['j']):
     vertices.append(grid.get_cell_vertices(row, col))
 polygons_toedrn = [flopy.utils.geometry.Polygon(vrt) for vrt in vertices]
 
+#Let's create constant head cells shapefile
+CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
+                   "col":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[1]})
 
 if False:
-    #Let's create constant head cells shapefile
-    CH_df = pd.DataFrame({"row":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[0],
-                       "col":np.where(bas.strt[0][:]==np.unique(bas.strt[0][:])[-1])[1]})
+
 
     pyhf.flopyf.df_to_shp(grid,CH_df,shp_dir,"CH.shp")
 
 #SLR time series
-SLR=pd.read_csv("SLR.csv")
+SLR=pd.read_csv("SLR.csv",index_col=0)
 
 #Let's calculate rates
 for scenario in SLR.columns[SLR.columns!="Year"].values:
     #Let's add new column
     SLR[scenario+"_rate"]=0
-    SLR.loc[SLR.Year == SLR.Year.values[0], scenario + "_rate"]=0
-    for year in SLR.Year.values[1:]:
-        SLR.loc[SLR.Year == year, scenario + "_rate"]=SLR.loc[SLR.Year == year, scenario].values[0]-SLR.loc[SLR.Year == year-1, scenario].values[0]
+    SLR.loc[ SLR.index.values[0], scenario + "_rate"]=0
+    for year in SLR.index.values[1:]:
+        SLR.loc[year, scenario + "_rate"]=SLR.loc[year, scenario]-SLR.loc[year-1, scenario]
 
 
 
@@ -237,8 +248,9 @@ for sens in ["LB","Base","UB"]:
     if not os.path.exists(RPF_BAU_out):
         os.makedirs(RPF_BAU_out)
 
+    for year in range(Start_Year, 2021):
     #3. Let's loop through years now
-    for year in range(Start_Year,End_Year+1):
+    #for year in range(Start_Year,End_Year+1):
 
         # 3.1 Initiate MODFLOW for year 1
         if year==Start_Year:
@@ -331,7 +343,7 @@ for sens in ["LB","Base","UB"]:
         # Let's update constant heads
 
         for layer in range(3):
-            ml.bas6.strt[layer] = SLR.loc[SLR.Year==year, "2_ft"].values[0]
+            ml.bas6.strt[layer] = SLR.loc[year, "2_ft"]
         #Change model working space
         ml.change_model_ws(new_pth=os.path.join(sens, "BAU",str(year)))
         ml.write_input()
@@ -412,7 +424,7 @@ for sens in ["LB","Base","UB"]:
         pyhf.RPF.rpf(Transects, ml, year, SLR, RPF_BAU_out)
 
     # Let's create band plots
-    pyhf.utils.band_plot(Start_Year, End_Year, RPF_BAU_out)
+    pyhf.utils.band_plot(Start_Year-1, End_Year, RPF_BAU_out)
 
     np_dir_BAU=os.path.join(np_dir,sens,"BAU")
     if not os.path.exists(np_dir_BAU):
@@ -577,21 +589,21 @@ for sens in ["LB","Base","UB"]:
         #Let's export top elevation
         flopy.export.utils.export_array(grid, os.path.join(WLR_ras_dir, "Top_ft_" + str(year) + ".tif"), ml.dis.top[:])
 
-        pyhf.RPF.rpf(Transects, ml, year - 1, SLR, RPF_WLR_out)
+        pyhf.RPF.rpf(Transects, ml, year, SLR, RPF_WLR_out)
 
     # Let's create band plots
-    pyhf.utils.band_plot(Start_Year, End_Year, RPF_WLR_out)
+    pyhf.utils.band_plot(Start_Year-1, End_Year, RPF_WLR_out)
 
 
     #Let's export shapefile of cross sections for first and last time step
-    pyhf.utils.shp_df_join(RPF_BAU_out,["Transects_"+str(Start_Year)+".csv",
+    pyhf.utils.shp_df_join(RPF_BAU_out,["Transects_"+str(Start_Year-1)+".csv",
                                         "Transects_" + str(End_Year) + ".csv"]
                            ,os.path.join(shp_dir,"RPF","Transect_Cells_v3.shp"),
                            os.path.join(shp_dir, "RPF"),
                            sens + "_BAU_"
                            )
 
-    pyhf.utils.shp_df_join(RPF_WLR_out,["Transects_"+str(Start_Year)+".csv",
+    pyhf.utils.shp_df_join(RPF_WLR_out,["Transects_"+str(Start_Year-1)+".csv",
                                         "Transects_" + str(End_Year) + ".csv"]
                            ,os.path.join(shp_dir,"RPF","Transect_Cells_v3.shp"),
                            os.path.join(shp_dir, "RPF"),
@@ -605,7 +617,7 @@ for sens in ["LB","Base","UB"]:
 
 
 Base_2018_BAU_dir=os.path.join(wdir,"Base", "BAU", "Output", "RPF")
-RPF_2018_df=pd.read_csv(os.path.join(Base_2018_BAU_dir,"Transects_2018.csv"),index_col=0)
+RPF_2018_df=pd.read_csv(os.path.join(Base_2018_BAU_dir,"Transects_2017.csv"),index_col=0)
 out_path=r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_11\RPF"
 
 pyhf.utils.histogram(RPF_2018_df,
