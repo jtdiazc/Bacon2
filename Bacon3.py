@@ -27,13 +27,13 @@ csv_dir=os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\CSV",sim_vers)
 SLR=pd.read_csv(r"C:\Projects\5630\20221122\SLR.csv",index_col=0)
 
 
-ml = flopy.modflow.Modflow.load('Base/BAU/MF_inputs/Bacon.nam')
+ml = flopy.modflow.Modflow.load(os.path.join(wdir,r'Base\BAU\MF_inputs\Bacon.nam'))
 
-toedrains_in=pd.read_csv(r"ToeDrains_Index_Flopy.csv")
+toedrains_in=pd.read_csv(os.path.join(wdir,r"ToeDrains_Index_Flopy.csv"))
 
-Transects=pd.read_csv("Transects.csv")
+Transects=pd.read_csv(os.path.join(wdir,"Transects.csv"))
 
-rice_df=pd.read_csv(os.path.join("Base","WLR","Rice.csv"))
+rice_df=pd.read_csv(os.path.join(wdir,"Base","WLR","Rice.csv"))
 
 isam=pyhf.isa(wdir,np_dir,shp_dir,ras_dir,csv_dir,SLR,ml,toedrains_in, Transects, rice_df)
 
@@ -313,9 +313,12 @@ RPF_2070_df_WLR=pd.read_csv(os.path.join(csv_dir,"Base_WLR_RPF_"+str(2070)+".csv
 
 ##Due to seepage
 perc_seep_2070_WLR=np.percentile(RPF_2070_df_WLR.RPF_Seep,[25,50,75])
+perc_seep_2018=np.percentile(RPF_2018_df.RPF_Seep,[25,50,75])
 
 ##Due to static slope failure
 perc_slope_2070_WLR=np.percentile(RPF_2070_df_WLR.RPF_Slope,[25,50,75])
+perc_slope_2018=np.percentile(RPF_2018_df.RPF_Slope,[25,50,75])
 
 ##Total RPFs
-perc_slope_2070_WLR=np.percentile(RPF_2070_df_WLR.RPF_Total,[25,50,75])
+perc_total_2070_WLR=np.percentile(RPF_2070_df_WLR.RPF_Total,[25,50,75])
+perc_total_2018=np.percentile(RPF_2018_df.RPF_Total,[25,50,75])
