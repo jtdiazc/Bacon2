@@ -14,7 +14,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 sim_vers="20221122"
 
 #We set directory
-wdir=os.path.join(r"C:\Projects\5630",sim_vers)
+wdir=os.path.join(r"C:\Users\jdiaz\OneDrive - HydroFocus\5630_old",sim_vers)
 
 np_dir=os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\Numpy",sim_vers)
 
@@ -24,7 +24,7 @@ ras_dir=os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\raster",sim_vers)
 
 csv_dir=os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\CSV",sim_vers)
 
-SLR=pd.read_csv(r"C:\Projects\5630\20221122\SLR.csv",index_col=0)
+SLR=pd.read_csv(r"C:\Users\jdiaz\OneDrive - HydroFocus\5630_old\20221122\SLR.csv",index_col=0)
 
 
 ml = flopy.modflow.Modflow.load(os.path.join(wdir,r'Base\BAU\MF_inputs\Bacon.nam'))
@@ -36,6 +36,7 @@ Transects=pd.read_csv(os.path.join(wdir,"Transects.csv"))
 rice_df=pd.read_csv(os.path.join(wdir,"Base","WLR","Rice.csv"))
 
 isam=pyhf.isa(wdir,np_dir,shp_dir,ras_dir,csv_dir,SLR,ml,toedrains_in, Transects, rice_df)
+
 
 #Organic matter to raster
 if False:
@@ -58,11 +59,21 @@ End_Year=2070
 #isam.run_WLR(sens,Start_Year,End_Year)
 #isam.run_BAU(sens,Start_Year,End_Year)
 #sens="LB"
-#isam.run_WLR(sens,Start_Year,End_Year)
+#isam.run_WLR(sens,Start_Year,End_Year,uncertainty=1)
 #isam.run_BAU(sens,Start_Year,End_Year)
-#sens="UB"
-#isam.run_WLR(sens,Start_Year,End_Year)
+sens="UB"
+isam.run_WLR(sens,Start_Year,End_Year)
 #isam.run_BAU(sens,Start_Year,End_Year)
+
+#Let's import model in 2070 BAU to see the remaining peat thickness
+ml_BAU_2070=flopy.modflow.Modflow.load(
+    "Bacon.nam",model_ws=r"C:\Users\jdiaz\OneDrive - HydroFocus\5630_old\20221122\Base\BAU\2070")
+ml_BAU_2070.modelgrid.set_coord_info(xoff=6249820, yoff=2165621, epsg=2227)
+
+PT_thckness_2070=ml_BAU_2070.dis.top[:]-ml_BAU_2070.dis.botm[0][:]
+flopy.export.utils.export_array(ml_BAU_2070.modelgrid, os.path.join(r"\\hydro-nas\Team\Projects\5630_DSC\GIS\maps\Journal\Peat_Thickness",
+                                                                    "PT_thck_ft_2070.tif"), PT_thckness_2070)
+
 
 #Density plots for RPF
 out_path=r"\\hydro-nas\Team\Projects\5630_DSC\Paper\2022_12\RPF"
@@ -322,3 +333,12 @@ perc_slope_2018=np.percentile(RPF_2018_df.RPF_Slope,[25,50,75])
 ##Total RPFs
 perc_total_2070_WLR=np.percentile(RPF_2070_df_WLR.RPF_Total,[25,50,75])
 perc_total_2018=np.percentile(RPF_2018_df.RPF_Total,[25,50,75])
+
+#Let's export constant head cells
+CH_df=pd.DataFrame({"row":np.where(ml.bas6.ibound[0][:]<0)[0],
+                    "col":np.where(ml.bas6.ibound[0][:]<0)[1]})
+pyhf.flopyf.df_to_shp(isam.ml.modelgrid,CH_df,shp_dir,"CH.shp")
+
+#Let's export drains
+drns_df=pd.DataFrame.from_records(ml.drn.stress_period_data[0])
+pyhf.flopyf.df_to_shp(isam.ml.modelgrid,drns_df,shp_dir,"Drains.shp",col_key="j",row_key="i")
